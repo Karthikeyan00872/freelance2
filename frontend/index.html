@@ -335,6 +335,12 @@
             gap: 10px;
         }
 
+            .auth-user {
+                color: var(--ink);
+                font-weight: 700;
+                white-space: nowrap
+            }
+
         .hamburger {
             display: none;
             width: 42px;
@@ -1455,19 +1461,23 @@
         <div class="nav-wrap">
             <a href="#home" class="logo" data-route="home">
                 <span class="mark">
-                    <img src="logo.png" alt="RaniCab logo">
+                    <img src="../src/logo.png" alt="RaniCab logo">
                 </span>
                 Rani<span class="go">Cab</span>
             </a>
             <nav class="primary">
-                <a href="#home" data-route="home" class="active">Home</a>
-                <a href="#oneway" data-route="oneway">Oneway Trip</a>
-                <a href="#hourly" data-route="hourly">Hourly Rental</a>
-                <a href="#airport" data-route="airport">Airport Transfer</a>
+                <a href="#home" data-route="home" class="active" data-public-menu>Home</a>
+                <a href="#oneway" data-route="oneway" data-public-menu>Oneway Trip</a>
+                <a href="#hourly" data-route="hourly" data-public-menu>Hourly Rental</a>
+                <a href="#airport" data-route="airport" data-public-menu>Airport Transfer</a>
+                <a href="/frontend/rider_dashboard.html" data-auth-dashboard data-rider-only hidden>Rider Dashboard</a>
+                <a href="/frontend/driver_dashboard.html" data-auth-dashboard data-driver-only hidden>Driver Dashboard</a>
             </nav>
             <div class="nav-actions">
-                <button class="btn btn-ghost btn-sm" data-open-login>Log in</button>
-                <button class="btn btn-primary btn-sm" data-open-signup>Sign up</button>
+                <button class="btn btn-ghost btn-sm" data-open-login data-auth-guest>Log in</button>
+                <button class="btn btn-primary btn-sm" data-open-signup data-auth-guest>Sign up</button>
+                <span class="auth-user" data-auth-user hidden></span>
+                <button class="btn btn-primary btn-sm" data-logout hidden>Log out</button>
                 <button class="hamburger" id="hamburgerBtn" aria-label="Open menu" aria-expanded="false">
                     <svg viewBox="0 0 24 24" fill="none">
                         <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="2"
@@ -1477,13 +1487,17 @@
             </div>
         </div>
         <div class="mobile-menu" id="mobileMenu">
-            <a href="#home" data-route="home">Home</a>
-            <a href="#oneway" data-route="oneway">Oneway Trip</a>
-            <a href="#hourly" data-route="hourly">Hourly Rental</a>
-            <a href="#airport" data-route="airport">Airport Transfer</a>
+            <a href="#home" data-route="home" data-public-menu>Home</a>
+            <a href="#oneway" data-route="oneway" data-public-menu>Oneway Trip</a>
+            <a href="#hourly" data-route="hourly" data-public-menu>Hourly Rental</a>
+            <a href="#airport" data-route="airport" data-public-menu>Airport Transfer</a>
+            <a href="/frontend/rider_dashboard.html" data-auth-dashboard data-rider-only hidden>Rider Dashboard</a>
+            <a href="/frontend/driver_dashboard.html" data-auth-dashboard data-driver-only hidden>Driver Dashboard</a>
             <div class="mob-actions">
-                <button class="btn btn-ghost btn-sm" style="flex:1" data-open-login>Log in</button>
-                <button class="btn btn-primary btn-sm" style="flex:1" data-open-signup>Sign up</button>
+                <button class="btn btn-ghost btn-sm" style="flex:1" data-open-login data-auth-guest>Log in</button>
+                <button class="btn btn-primary btn-sm" style="flex:1" data-open-signup data-auth-guest>Sign up</button>
+                <span class="auth-user" data-auth-user hidden></span>
+                <button class="btn btn-primary btn-sm" style="flex:1" data-logout hidden>Log out</button>
             </div>
         </div>
     </header>
@@ -1502,7 +1516,7 @@
                             drivers and zero cancellation drama — book in under a minute.</p>
                         <div class="hero-cta-row">
                             <a href="#oneway" data-route="oneway" class="btn btn-primary">Book a Ride</a>
-                            <button class="btn btn-outline" data-open-login>Drive with Rani Cab</button>
+                            <button class="btn btn-outline" data-open-login data-auth-guest>Drive with Rani Cab</button>
                         </div>
                         <div class="trust-row">
                             <div class="trust-item"><svg viewBox="0 0 24 24" fill="none">
@@ -1520,7 +1534,7 @@
                         </div>
                     </div>
 
-                    <img class="home-visual" src="hm.png" alt="RaniCab ride across Tamil Nadu">
+                        <img class="home-visual" src="../src/hm.png" alt="RaniCab ride across Tamil Nadu">
                 </div>
             </div>
 
@@ -1589,19 +1603,19 @@
                         <h2>A cab for every trip</h2>
                     </div>
                     <div class="cab-scroll reveal">
-                        <div class="cab-card"><img class="cab-image" src="mini.png" alt="Mini cab">
+                        <div class="cab-card"><img class="cab-image" src="../src/mini.png" alt="Mini cab">
                             <h4>Mini</h4>
                             <p>Economy, 4-seater</p>
                         </div>
-                        <div class="cab-card"><img class="cab-image" src="mini4seater.png" alt="Sedan cab">
+                        <div class="cab-card"><img class="cab-image" src="../src/mini4seater.png" alt="Sedan cab">
                             <h4>Sedan</h4>
                             <p>Comfort, 4-seater</p>
                         </div>
-                        <div class="cab-card"><img class="cab-image" src="suv.png" alt="SUV cab">
+                        <div class="cab-card"><img class="cab-image" src="../src/suv.png" alt="SUV cab">
                             <h4>SUV</h4>
                             <p>Spacious, 6-seater</p>
                         </div>
-                        <div class="cab-card"><img class="cab-image" src="12st.png" alt="Traveller cab">
+                        <div class="cab-card"><img class="cab-image" src="../src/12st.png" alt="Traveller cab">
                             <h4>Traveller</h4>
                             <p>Group, 12-seater</p>
                         </div>
@@ -1643,7 +1657,7 @@
                             <h3>Own a car? Turn it into income on your schedule.</h3>
                             <p>Set your own hours, get paid weekly, and keep 100% of your tips.</p>
                         </div>
-                        <button class="btn btn-primary" data-open-login>Driver Login</button>
+                        <button class="btn btn-primary" data-open-login data-auth-guest>Driver Login</button>
                     </div>
                 </div>
             </div>
@@ -1714,8 +1728,8 @@
                                     <div class="field"><label for="ow-email">Email</label><input class="input"
                                             type="email" id="ow-email" placeholder="you@email.com"></div>
                                 </div>
-                                <div class="fare-note"><span>Estimated fare</span><b>₹2,640 – ₹2,980</b></div>
-                                <button class="btn btn-primary btn-block" type="button">Book Oneway Trip</button>
+                                <div class="fare-note"><span>Estimated fare</span><b id="ow-fare">₹2,640</b></div>
+                                <button class="btn btn-primary btn-block" id="bookOnewayBtn" type="button">Book Oneway Trip</button>
                             </div>
                         </div>
                     </div>
@@ -1807,12 +1821,12 @@
                                 </div>
                                 <div class="field-row">
                                     <div class="field"><label for="hp-phone">Mobile No.</label><input class="input"
-                                            type="tel" placeholder="98765 43210"></div>
+                                            type="tel" id="hp-phone" placeholder="98765 43210"></div>
                                     <div class="field"><label for="hp-email">Email</label><input class="input"
-                                            type="email" placeholder="you@email.com"></div>
+                                            type="email" id="hp-email" placeholder="you@email.com"></div>
                                 </div>
                                 <div class="fare-note"><span>Package fare</span><b id="hourlyFare">₹1,080</b></div>
-                                <button class="btn btn-primary btn-block" type="button">Book Hourly Rental</button>
+                                <button class="btn btn-primary btn-block" id="bookHourlyBtn" type="button">Book Hourly Rental</button>
                             </div>
                         </div>
                     </div>
@@ -1919,11 +1933,12 @@
                                 </div>
                                 <div class="field-row">
                                     <div class="field"><label for="ap-phone">Mobile No.</label><input class="input"
-                                            type="tel" placeholder="98765 43210"></div>
+                                            type="tel" id="ap-phone" placeholder="98765 43210"></div>
                                     <div class="field"><label for="ap-email">Email</label><input class="input"
-                                            type="email" placeholder="you@email.com"></div>
+                                            type="email" id="ap-email" placeholder="you@email.com"></div>
                                 </div>
-                                <button class="btn btn-primary btn-block" type="button">Book Airport Transfer</button>
+                                <div class="fare-note"><span>Transfer fare</span><b id="airportFare">₹650</b></div>
+                                <button class="btn btn-primary btn-block" id="bookAirportBtn" type="button">Book Airport Transfer</button>
                                 <p class="stub-note">✂ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -</p>
                             </div>
                         </div>
@@ -1990,10 +2005,10 @@
             <div class="footer-grid">
                 <div>
                     <div class="footer-logo">
-                        <span class="mark"><img src="logo.png" alt=""></span>
+                        <span class="mark"><img src="../src/logo.png" alt=""></span>
                         Rani<span class="go">Cab</span>
                     </div>
-                    <img src="ft.png" alt="RaniCab service coverage" class="footer-image">
+                    <img src="../src/ft.png" alt="RaniCab service coverage" class="footer-image">
                     <p class="footer-desc">Reliable, upfront-priced cab booking across Tamil Nadu — oneway trips, hourly
                         rentals and airport transfers.</p>
                     <div class="social-row">
@@ -2028,13 +2043,13 @@
                 </div>
                 <div>
                     <h5>For Drivers</h5>
-                    <a href="#" data-open-login>Driver Login</a>
+                    <a href="#" data-open-login data-auth-guest>Driver Login</a>
                     <a href="#">Fleet Partner</a>
                 </div>
                 <div>
                     <h5>Account</h5>
-                    <a href="#" data-open-login>Log in</a>
-                    <a href="#" data-open-signup>Sign up</a>
+                    <a href="#" data-open-login data-auth-guest>Log in</a>
+                    <a href="#" data-open-signup data-auth-guest>Sign up</a>
                     <a href="#">Terms</a>
                     <a href="#">Privacy Policy</a>
                 </div>
@@ -2282,8 +2297,9 @@
         (function () {
             "use strict";
 
-            var API_BASE = window.RANICAB_API_BASE || "http://localhost:5000";
+            var API_BASE = window.RANICAB_API_BASE || (window.location.port === "5000" ? window.location.origin : "http://localhost:5000");
             var googleCredential = null;
+
             function api(path, options) {
                 return fetch(API_BASE + path, Object.assign({
                     credentials: "include",
@@ -2295,33 +2311,99 @@
                     });
                 });
             }
+
             function saveSession(user) {
-                localStorage.setItem("ranicab-session", JSON.stringify({ role: user.role, name: user.name, email: user.email }));
+                localStorage.setItem("ranicab-session", JSON.stringify({
+                    role: user.role,
+                    name: user.name,
+                    email: user.email,
+                    phone: user.phone || ""
+                }));
+                updateAuthNav();
             }
-            function setError(el, message) { el.textContent = message; el.classList.add("show"); }
+
+            function getSession() {
+                try {
+                    return JSON.parse(localStorage.getItem("ranicab-session") || "null");
+                } catch (e) {
+                    return null;
+                }
+            }
+
+            function updateAuthNav() {
+                var session = getSession();
+                document.querySelectorAll("[data-auth-guest]").forEach(function (el) { el.hidden = !!session; });
+                document.querySelectorAll("[data-public-menu]").forEach(function (el) {
+                    el.hidden = !!session && session.role === "driver" && el.getAttribute("data-route") !== "home";
+                });
+                document.querySelectorAll("[data-rider-only]").forEach(function (el) {
+                    el.hidden = !session || session.role !== "rider";
+                });
+                document.querySelectorAll("[data-driver-only]").forEach(function (el) {
+                    el.hidden = !session || session.role !== "driver";
+                });
+                document.querySelectorAll("[data-auth-user]").forEach(function (el) {
+                    el.hidden = !session;
+                    el.textContent = session ? session.name : "";
+                });
+                document.querySelectorAll("[data-logout]").forEach(function (el) { el.hidden = !session; });
+            }
+
+            function logout() {
+                return api("/api/auth/logout", { method: "POST" })
+                    .catch(function () {})
+                    .finally(function () {
+                        localStorage.removeItem("ranicab-session");
+                        updateAuthNav();
+                        window.location.href = "/";
+                    });
+            }
+
+            function setError(el, message) {
+                if (!el) return;
+                el.textContent = message;
+                el.classList.add("show");
+            }
+
             function finishGoogleAuth(phone, signupMode) {
-                if (!googleCredential) { alert("Google credential missing. Please try Continue with Google again."); return; }
-                return api("/api/auth/google", { method: "POST", body: JSON.stringify({ credential: googleCredential, phone: phone || "" }) })
-                    .then(function (data) {
-                        saveSession(data.user);
-                        if (signupMode) { showSignupPanel("success"); return; }
-                        document.getElementById("loginSuccessTitle").textContent = "You're all set!";
-                        document.getElementById("loginSuccessText").textContent = "Your Google account is linked and ready to ride.";
-                        showLoginPanel("success");
-                    })
-                    .catch(function (error) { alert(error.message); });
+                if (!googleCredential) {
+                    alert("Google credential missing. Please try Continue with Google again.");
+                    return;
+                }
+                return api("/api/auth/google", {
+                    method: "POST",
+                    body: JSON.stringify({ credential: googleCredential, phone: phone || "" })
+                }).then(function (data) {
+                    saveSession(data.user);
+                    closeAllModals();
+                    window.location.href = data.user.role === "driver" ? "/frontend/driver_dashboard.html" : "/frontend/rider_dashboard.html";
+                }).catch(function (error) {
+                    alert(error.message);
+                });
             }
+
             function startGoogle(signupMode) {
                 api("/api/config").then(function (cfg) {
                     if (!cfg.google_client_id || !window.google) throw new Error("Google Sign-In is not configured");
-                    window.google.accounts.id.initialize({ client_id: cfg.google_client_id, callback: function (response) {
-                        googleCredential = response.credential;
-                        if (signupMode) finishGoogleAuth("", true); else showLoginPanel("googlephone");
-                    }});
-                    window.google.accounts.id.prompt(function (notification) {
-                        if (notification.isNotDisplayed() || notification.isSkippedMoment()) window.google.accounts.id.renderButton(signupMode ? document.getElementById("googleSignupBtn") : document.getElementById("googleLoginBtn"), { theme: "outline", size: "large", width: 320 });
+                    window.google.accounts.id.initialize({
+                        client_id: cfg.google_client_id,
+                        callback: function (response) {
+                            googleCredential = response.credential;
+                            if (signupMode) finishGoogleAuth("", true);
+                            else showLoginPanel("googlephone");
+                        }
                     });
-                }).catch(function (error) { alert(error.message); });
+                    window.google.accounts.id.prompt(function (notification) {
+                        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+                            window.google.accounts.id.renderButton(
+                                signupMode ? document.getElementById("googleSignupBtn") : document.getElementById("googleLoginBtn"),
+                                { theme: "outline", size: "large", width: 320 }
+                            );
+                        }
+                    });
+                }).catch(function (error) {
+                    alert(error.message);
+                });
             }
 
             /* ---------- ROUTING ---------- */
@@ -2338,6 +2420,7 @@
                 closeMobileMenu();
                 refreshReveal();
             }
+
             document.querySelectorAll("[data-route]").forEach(function (el) {
                 el.addEventListener("click", function (e) {
                     e.preventDefault();
@@ -2346,6 +2429,7 @@
                     setRoute(r);
                 });
             });
+
             window.addEventListener("hashchange", function () {
                 setRoute(location.hash.replace("#", ""));
             });
@@ -2359,10 +2443,12 @@
                 mobileMenu.classList.remove("open");
                 hamburger.setAttribute("aria-expanded", "false");
             }
-            hamburger.addEventListener("click", function () {
-                var open = mobileMenu.classList.toggle("open");
-                hamburger.setAttribute("aria-expanded", open ? "true" : "false");
-            });
+            if (hamburger) {
+                hamburger.addEventListener("click", function () {
+                    var open = mobileMenu.classList.toggle("open");
+                    hamburger.setAttribute("aria-expanded", open ? "true" : "false");
+                });
+            }
 
             /* ---------- HOME TICKET TABS ---------- */
             document.querySelectorAll("#homeTabs .ticket-tab").forEach(function (tab) {
@@ -2376,26 +2462,69 @@
                 });
             });
 
-            /* ---------- HOURLY CHIPS ---------- */
+            /* ---------- ONEWAY FARE CALCULATION ---------- */
+            var cityDistances = {
+                "Madurai-Chennai": 460, "Chennai-Madurai": 460,
+                "Madurai-Coimbatore": 215, "Coimbatore-Madurai": 215,
+                "Madurai-Trichy": 135, "Trichy-Madurai": 135,
+                "Madurai-Salem": 230, "Salem-Madurai": 230,
+                "Madurai-Tirupur": 195, "Tirupur-Madurai": 195,
+                "Chennai-Coimbatore": 510, "Coimbatore-Chennai": 510,
+                "Chennai-Trichy": 330, "Trichy-Chennai": 330,
+                "Chennai-Salem": 345, "Salem-Chennai": 345,
+                "Chennai-Tirupur": 460, "Tirupur-Chennai": 460,
+                "Coimbatore-Trichy": 215, "Trichy-Coimbatore": 215,
+                "Coimbatore-Salem": 165, "Salem-Coimbatore": 165,
+                "Coimbatore-Tirupur": 55, "Tirupur-Coimbatore": 55,
+                "Trichy-Salem": 140, "Salem-Trichy": 140,
+                "Trichy-Tirupur": 190, "Tirupur-Trichy": 190,
+                "Salem-Tirupur": 120, "Tirupur-Salem": 120
+            };
+
+            function calculateOnewayFare() {
+                var fromCity = document.getElementById("ow-from") ? document.getElementById("ow-from").value : "Madurai";
+                var toCity = document.getElementById("ow-to") ? document.getElementById("ow-to").value : "Chennai";
+                var dist = cityDistances[fromCity + "-" + toCity] || 220;
+                if (fromCity === toCity) dist = 35;
+                var baseFare = Math.round(dist * 12);
+                var fareEl = document.getElementById("ow-fare");
+                if (fareEl) {
+                    fareEl.textContent = "₹" + baseFare.toLocaleString("en-IN");
+                }
+                return baseFare;
+            }
+
+            var owFromEl = document.getElementById("ow-from");
+            var owToEl = document.getElementById("ow-to");
+            if (owFromEl) owFromEl.addEventListener("change", calculateOnewayFare);
+            if (owToEl) owToEl.addEventListener("change", calculateOnewayFare);
+            calculateOnewayFare();
+
+            /* ---------- HOURLY CHIPS & FARE ---------- */
             var hourlyRate = 180;
+            var selectedHourly = 6;
             document.querySelectorAll("#hourlyChips .chip").forEach(function (chip) {
                 chip.addEventListener("click", function () {
                     document.querySelectorAll("#hourlyChips .chip").forEach(function (c) { c.classList.remove("selected"); });
                     chip.classList.add("selected");
-                    var hrs = parseInt(chip.getAttribute("data-hr"), 10);
+                    selectedHourly = parseInt(chip.getAttribute("data-hr"), 10) || 6;
                     var fareEl = document.getElementById("hourlyFare");
-                    if (fareEl) fareEl.textContent = "₹" + (hrs * hourlyRate).toLocaleString("en-IN");
+                    if (fareEl) fareEl.textContent = "₹" + (selectedHourly * hourlyRate).toLocaleString("en-IN");
                 });
             });
 
-            /* generic chip-row selection for the home hourly mini-widget */
-            document.querySelectorAll('[data-homepanel="hourly"] .chip-row .chip').forEach(function (chip) {
-                chip.addEventListener("click", function () {
-                    var row = chip.closest(".chip-row");
-                    row.querySelectorAll(".chip").forEach(function (c) { c.classList.remove("selected"); });
-                    chip.classList.add("selected");
+            /* ---------- AIRPORT TOGGLE & FARE ---------- */
+            var airportToggle = document.getElementById("airportToggle");
+            var airportDirection = "pickup";
+            if (airportToggle) {
+                airportToggle.querySelectorAll("button").forEach(function (btn) {
+                    btn.addEventListener("click", function () {
+                        airportToggle.querySelectorAll("button").forEach(function (b) { b.classList.remove("active"); });
+                        btn.classList.add("active");
+                        airportDirection = btn.getAttribute("data-dir") || "pickup";
+                    });
                 });
-            });
+            }
 
             /* ---------- FLEET CAROUSEL ---------- */
             var cabScroll = document.querySelector(".cab-scroll");
@@ -2419,31 +2548,25 @@
                 startFleetAutoplay();
             }
 
-            /* ---------- AIRPORT TOGGLE ---------- */
-            var airportToggle = document.getElementById("airportToggle");
-            if (airportToggle) {
-                airportToggle.querySelectorAll("button").forEach(function (btn) {
-                    btn.addEventListener("click", function () {
-                        airportToggle.querySelectorAll("button").forEach(function (b) { b.classList.remove("active"); });
-                        btn.classList.add("active");
-                    });
-                });
-            }
-            document.querySelectorAll(".toggle-pair button").forEach(function (btn) {
-                btn.addEventListener("click", function () {
-                    var pair = btn.closest(".toggle-pair");
-                    if (!pair) return;
-                    pair.querySelectorAll("button").forEach(function (b) { b.classList.remove("active"); });
-                    btn.classList.add("active");
-                });
-            });
-
-            /* ---------- BOOKING REF GENERATOR (cosmetic) ---------- */
-            function genRef(prefix) { return "VG-" + Math.floor(1000 + Math.random() * 8999); }
+            /* ---------- BOOKING REF GENERATOR ---------- */
+            function genRef() { return "VG-" + Math.floor(1000 + Math.random() * 8999); }
             ["refOneway", "refOnewayPage", "refHourly", "refAirport"].forEach(function (id) {
                 var el = document.getElementById(id);
                 if (el) el.textContent = genRef();
             });
+
+            /* ---------- PREFILL TODAY DATE ---------- */
+            var todayStr = new Date().toISOString().split("T")[0];
+            var nowTimeStr = new Date().toTimeString().slice(0, 5);
+            ["ow-date", "hp-date", "ap-date"].forEach(function (id) {
+                var el = document.getElementById(id);
+                if (el && !el.value) el.value = todayStr;
+            });
+            ["ow-time", "hp-time", "ap-time"].forEach(function (id) {
+                var el = document.getElementById(id);
+                if (el && !el.value) el.value = nowTimeStr;
+            });
+
             /* ---------- SCROLL REVEAL ---------- */
             var io = new IntersectionObserver(function (entries) {
                 entries.forEach(function (entry) {
@@ -2456,9 +2579,21 @@
             }
             refreshReveal();
 
-            /* ---------- MODALS ---------- */
+            /* ---------- MODALS & AUTH ---------- */
             var loginBackdrop = document.getElementById("loginBackdrop");
             var signupBackdrop = document.getElementById("signupBackdrop");
+            updateAuthNav();
+
+            // Refresh user auth on load
+            api("/api/auth/me").then(function (res) {
+                if (res && res.user) {
+                    saveSession(res.user);
+                }
+            }).catch(function () {});
+
+            document.querySelectorAll("[data-logout]").forEach(function (el) {
+                el.addEventListener("click", function () { logout(); });
+            });
 
             function showLoginPanel(key) {
                 document.querySelectorAll("[data-loginpanel]").forEach(function (p) {
@@ -2473,7 +2608,7 @@
 
             function openModal(backdrop) {
                 backdrop.classList.add("open");
-                var firstInput = backdrop.querySelector("input");
+                var firstInput = backdrop.querySelector("input:not([type=hidden])");
                 if (firstInput) setTimeout(function () { firstInput.focus(); }, 60);
             }
             function closeModal(backdrop) {
@@ -2484,14 +2619,33 @@
                 closeModal(signupBackdrop);
             }
 
+            function setRoleTab(role) {
+                var toggle = document.getElementById("loginRoleToggle");
+                if (!toggle) return;
+                toggle.querySelectorAll("button").forEach(function (b) {
+                    b.classList.toggle("active", b.getAttribute("data-role") === role);
+                });
+                document.querySelectorAll("[data-roleform]").forEach(function (f) {
+                    f.style.display = f.getAttribute("data-roleform") === role ? "block" : "none";
+                });
+                var extras = document.getElementById("riderLoginExtras");
+                if (extras) extras.style.display = role === "rider" ? "block" : "none";
+            }
+
             document.querySelectorAll("[data-open-login]").forEach(function (el) {
                 el.addEventListener("click", function (e) {
                     e.preventDefault();
                     closeAllModals();
                     showLoginPanel("creds");
+                    if (el.getAttribute("data-role-select") === "driver" || el.textContent.toLowerCase().includes("driver")) {
+                        setRoleTab("driver");
+                    } else {
+                        setRoleTab("rider");
+                    }
                     openModal(loginBackdrop);
                 });
             });
+
             document.querySelectorAll("[data-open-signup]").forEach(function (el) {
                 el.addEventListener("click", function (e) {
                     e.preventDefault();
@@ -2500,15 +2654,17 @@
                     openModal(signupBackdrop);
                 });
             });
+
             document.querySelectorAll("[data-close-modal]").forEach(function (el) {
                 el.addEventListener("click", function () { closeAllModals(); });
             });
             [loginBackdrop, signupBackdrop].forEach(function (bd) {
-                bd.addEventListener("click", function (e) { if (e.target === bd) closeAllModals(); });
+                if (bd) bd.addEventListener("click", function (e) { if (e.target === bd) closeAllModals(); });
             });
             document.addEventListener("keydown", function (e) {
                 if (e.key === "Escape") closeAllModals();
             });
+
             document.querySelectorAll("[data-switch-signup]").forEach(function (el) {
                 el.addEventListener("click", function (e) {
                     e.preventDefault();
@@ -2526,20 +2682,15 @@
                 });
             });
 
-            /* ---------- LOGIN: RIDER / DRIVER ROLE TOGGLE ---------- */
+            /* ---------- LOGIN ROLE TOGGLE ---------- */
             var loginRoleToggle = document.getElementById("loginRoleToggle");
-            var riderLoginExtras = document.getElementById("riderLoginExtras");
-            loginRoleToggle.querySelectorAll("button").forEach(function (btn) {
-                btn.addEventListener("click", function () {
-                    loginRoleToggle.querySelectorAll("button").forEach(function (b) { b.classList.remove("active"); });
-                    btn.classList.add("active");
-                    var role = btn.getAttribute("data-role");
-                    document.querySelectorAll("[data-roleform]").forEach(function (f) {
-                        f.style.display = f.getAttribute("data-roleform") === role ? "block" : "none";
+            if (loginRoleToggle) {
+                loginRoleToggle.querySelectorAll("button").forEach(function (btn) {
+                    btn.addEventListener("click", function () {
+                        setRoleTab(btn.getAttribute("data-role") || "rider");
                     });
-                    riderLoginExtras.style.display = role === "rider" ? "block" : "none";
                 });
-            });
+            }
 
             /* ---------- PASSWORD VISIBILITY ---------- */
             document.querySelectorAll("[data-pw-toggle]").forEach(function (btn) {
@@ -2557,73 +2708,266 @@
             document.querySelectorAll("[data-back-login]").forEach(function (el) {
                 el.addEventListener("click", function (e) { e.preventDefault(); showLoginPanel("creds"); });
             });
-            document.getElementById("sendResetBtn").addEventListener("click", function () {
-                var email = document.getElementById("fp-email").value.trim().toLowerCase();
-                if (!email || !email.includes("@")) { document.getElementById("fp-email").focus(); return; }
-                api("/api/auth/forgot-password/request", { method: "POST", body: JSON.stringify({ email: email }) })
-                    .then(function () { showLoginPanel("resetsent"); })
-                    .catch(function (err) { alert(err.message); });
-            });
-            document.getElementById("verifyResetBtn").addEventListener("click", function () {
-                var payload = { email: document.getElementById("fp-email").value.trim().toLowerCase(), otp: document.getElementById("fp-otp").value.trim(), password: document.getElementById("fp-pass").value };
-                var err = document.getElementById("resetError");
-                if (payload.otp.length !== 6 || payload.password.length < 6) { err.classList.add("show"); return; }
-                api("/api/auth/forgot-password/verify", { method: "POST", body: JSON.stringify(payload) })
-                    .then(function () { err.classList.remove("show"); showLoginPanel("creds"); alert("Password updated. Please log in."); })
-                    .catch(function (error) { setError(err, error.message); });
-            });
+            var sendResetBtn = document.getElementById("sendResetBtn");
+            if (sendResetBtn) {
+                sendResetBtn.addEventListener("click", function () {
+                    var email = document.getElementById("fp-email").value.trim().toLowerCase();
+                    if (!email || !email.includes("@")) { document.getElementById("fp-email").focus(); return; }
+                    api("/api/auth/forgot-password/request", { method: "POST", body: JSON.stringify({ email: email }) })
+                        .then(function () { showLoginPanel("resetsent"); })
+                        .catch(function (err) { alert(err.message); });
+                });
+            }
+            var verifyResetBtn = document.getElementById("verifyResetBtn");
+            if (verifyResetBtn) {
+                verifyResetBtn.addEventListener("click", function () {
+                    var payload = {
+                        email: document.getElementById("fp-email").value.trim().toLowerCase(),
+                        otp: document.getElementById("fp-otp").value.trim(),
+                        password: document.getElementById("fp-pass").value
+                    };
+                    var err = document.getElementById("resetError");
+                    if (payload.otp.length !== 6 || payload.password.length < 6) {
+                        if (err) err.classList.add("show");
+                        return;
+                    }
+                    api("/api/auth/forgot-password/verify", { method: "POST", body: JSON.stringify(payload) })
+                        .then(function () {
+                            if (err) err.classList.remove("show");
+                            showLoginPanel("creds");
+                            alert("Password updated successfully. Please log in.");
+                        })
+                        .catch(function (error) { setError(err, error.message); });
+                });
+            }
 
             /* ---------- RIDER LOGIN SUBMIT ---------- */
-            document.getElementById("riderLoginForm").addEventListener("submit", function (e) {
-                e.preventDefault();
-                var email = document.getElementById("ri-email").value.trim();
-                var pass = document.getElementById("ri-pass").value;
-                var err = document.getElementById("riderLoginError");
-                if (!email.includes("@") || pass.length < 3) { err.classList.add("show"); return; }
-                api("/api/auth/login", { method: "POST", body: JSON.stringify({ email: email.toLowerCase(), password: pass }) })
-                    .then(function (data) { err.classList.remove("show"); saveSession(data.user); document.getElementById("loginSuccessTitle").textContent = "Welcome back!"; document.getElementById("loginSuccessText").textContent = "Redirecting you to your RaniCab dashboard."; showLoginPanel("success"); })
-                    .catch(function (error) { setError(err, error.message); });
-            });
+            var riderLoginForm = document.getElementById("riderLoginForm");
+            if (riderLoginForm) {
+                riderLoginForm.addEventListener("submit", function (e) {
+                    e.preventDefault();
+                    var email = document.getElementById("ri-email").value.trim();
+                    var pass = document.getElementById("ri-pass").value;
+                    var err = document.getElementById("riderLoginError");
+                    if (!email.includes("@") || pass.length < 3) {
+                        if (err) err.classList.add("show");
+                        return;
+                    }
+                    api("/api/auth/login", { method: "POST", body: JSON.stringify({ email: email.toLowerCase(), password: pass, role: "rider" }) })
+                        .then(function (data) {
+                            if (err) err.classList.remove("show");
+                            saveSession(data.user);
+                            closeAllModals();
+                            window.location.href = "/frontend/rider_dashboard.html";
+                        })
+                        .catch(function (error) { setError(err, error.message); });
+                });
+            }
 
             /* ---------- DRIVER LOGIN SUBMIT ---------- */
-            document.getElementById("driverLoginForm").addEventListener("submit", function (e) {
-                e.preventDefault();
-                var id = document.getElementById("dr-id").value.trim();
-                var pass = document.getElementById("dr-pass").value;
-                var err = document.getElementById("driverLoginError");
-                if (!id || pass.length < 3) { err.classList.add("show"); return; }
-                api("/api/auth/login", { method: "POST", body: JSON.stringify({ username: id, password: pass }) })
-                    .then(function (data) { err.classList.remove("show"); saveSession(data.user); document.getElementById("loginSuccessTitle").textContent = "Welcome back, driver!"; document.getElementById("loginSuccessText").textContent = "Redirecting you to your trip dashboard."; showLoginPanel("success"); })
-                    .catch(function (error) { setError(err, error.message); });
-            });
+            var driverLoginForm = document.getElementById("driverLoginForm");
+            if (driverLoginForm) {
+                driverLoginForm.addEventListener("submit", function (e) {
+                    e.preventDefault();
+                    var id = document.getElementById("dr-id").value.trim();
+                    var pass = document.getElementById("dr-pass").value;
+                    var err = document.getElementById("driverLoginError");
+                    if (!id || pass.length < 3) {
+                        if (err) err.classList.add("show");
+                        return;
+                    }
+                    api("/api/auth/login", { method: "POST", body: JSON.stringify({ username: id, password: pass, role: "driver" }) })
+                        .then(function (data) {
+                            if (err) err.classList.remove("show");
+                            saveSession(data.user);
+                            closeAllModals();
+                            window.location.href = "/frontend/driver_dashboard.html";
+                        })
+                        .catch(function (error) { setError(err, error.message); });
+                });
+            }
 
-            /* ---------- GOOGLE LOGIN / SIGNUP ---------- */
-            document.getElementById("googleLoginBtn").addEventListener("click", function () { startGoogle(false); });
-            document.getElementById("googlePhoneContinue").addEventListener("click", function () {
-                var phone = document.getElementById("gl-phone").value.trim();
-                if (phone.length < 8) { document.getElementById("gl-phone").focus(); return; }
-                finishGoogleAuth(phone, false);
-            });
-            document.getElementById("googleSignupBtn").addEventListener("click", function () { startGoogle(true); });
+            /* ---------- GOOGLE AUTH BUTTONS ---------- */
+            var googleLoginBtn = document.getElementById("googleLoginBtn");
+            if (googleLoginBtn) googleLoginBtn.addEventListener("click", function () { startGoogle(false); });
+            var googlePhoneContinue = document.getElementById("googlePhoneContinue");
+            if (googlePhoneContinue) {
+                googlePhoneContinue.addEventListener("click", function () {
+                    var phone = document.getElementById("gl-phone").value.trim();
+                    if (phone.length < 8) { document.getElementById("gl-phone").focus(); return; }
+                    finishGoogleAuth(phone, false);
+                });
+            }
+            var googleSignupBtn = document.getElementById("googleSignupBtn");
+            if (googleSignupBtn) googleSignupBtn.addEventListener("click", function () { startGoogle(true); });
 
-            /* ---------- SIGNUP FORM SUBMIT ---------- */
-            document.getElementById("signupForm").addEventListener("submit", function (e) {
-                e.preventDefault();
-                var pass = document.getElementById("su-pass").value;
-                var pass2 = document.getElementById("su-pass2").value;
-                var username = document.getElementById("su-username").value.trim();
-                var email = document.getElementById("su-email").value.trim().toLowerCase();
-                var phone = document.getElementById("su-phone").value.trim();
-                var err = document.getElementById("signupError");
-                if (username.length < 2 || !email.includes("@") || phone.length < 8 || pass.length < 6 || pass !== pass2) {
-                    err.classList.add("show");
+            /* ---------- SIGNUP SUBMIT ---------- */
+            var signupForm = document.getElementById("signupForm");
+            if (signupForm) {
+                signupForm.addEventListener("submit", function (e) {
+                    e.preventDefault();
+                    var pass = document.getElementById("su-pass").value;
+                    var pass2 = document.getElementById("su-pass2").value;
+                    var username = document.getElementById("su-username").value.trim();
+                    var email = document.getElementById("su-email").value.trim().toLowerCase();
+                    var phone = document.getElementById("su-phone").value.trim();
+                    var err = document.getElementById("signupError");
+                    if (username.length < 2 || !email.includes("@") || phone.length < 8 || pass.length < 6 || pass !== pass2) {
+                        if (err) err.classList.add("show");
+                        return;
+                    }
+                    if (err) err.classList.remove("show");
+                    api("/api/auth/register", {
+                        method: "POST",
+                        body: JSON.stringify({ name: username, username: username, email: email, phone: phone, password: pass })
+                    }).then(function (data) {
+                        saveSession(data.user);
+                        closeAllModals();
+                        window.location.href = "/frontend/rider_dashboard.html";
+                    }).catch(function (error) {
+                        setError(err, error.message);
+                    });
+                });
+            }
+
+            /* =========================================================
+               BOOKING WORKFLOWS (Oneway, Hourly, Airport)
+               ========================================================= */
+
+            function requireRiderAuth(callback) {
+                var session = getSession();
+                if (!session) {
+                    alert("Please log in or sign up to book your trip.");
+                    showLoginPanel("creds");
+                    setRoleTab("rider");
+                    openModal(loginBackdrop);
                     return;
                 }
-                err.classList.remove("show");
-                api("/api/auth/register", { method: "POST", body: JSON.stringify({ name: username, username: username, email: email, phone: phone, password: pass }) })
-                    .then(function (data) { saveSession(data.user); showSignupPanel("success"); })
-                    .catch(function (error) { setError(err, error.message); });
-            });
+                if (session.role !== "rider") {
+                    alert("You are signed in as a driver. Please log in as a rider to book a trip.");
+                    return;
+                }
+                callback(session);
+            }
+
+            // 1. Oneway Booking
+            var bookOnewayBtn = document.getElementById("bookOnewayBtn");
+            if (bookOnewayBtn) {
+                bookOnewayBtn.addEventListener("click", function () {
+                    requireRiderAuth(function (session) {
+                        var fromCity = document.getElementById("ow-from").value;
+                        var toCity = document.getElementById("ow-to").value;
+                        var date = document.getElementById("ow-date").value || todayStr;
+                        var time = document.getElementById("ow-time").value || nowTimeStr;
+                        var phone = document.getElementById("ow-phone").value.trim() || session.phone;
+                        var email = document.getElementById("ow-email").value.trim() || session.email;
+                        var fare = calculateOnewayFare();
+
+                        bookOnewayBtn.disabled = true;
+                        bookOnewayBtn.textContent = "Booking trip...";
+
+                        api("/api/rides/request", {
+                            method: "POST",
+                            body: JSON.stringify({
+                                trip_type: "oneway",
+                                pickup_address: fromCity,
+                                dropoff_address: toCity,
+                                scheduled_date: date,
+                                scheduled_time: time,
+                                passenger_phone: phone,
+                                passenger_email: email,
+                                estimated_fare: fare
+                            })
+                        }).then(function (res) {
+                            window.location.href = "/frontend/rider_dashboard.html";
+                        }).catch(function (err) {
+                            alert("Booking failed: " + err.message);
+                            bookOnewayBtn.disabled = false;
+                            bookOnewayBtn.textContent = "Book Oneway Trip";
+                        });
+                    });
+                });
+            }
+
+            // 2. Hourly Rental Booking
+            var bookHourlyBtn = document.getElementById("bookHourlyBtn");
+            if (bookHourlyBtn) {
+                bookHourlyBtn.addEventListener("click", function () {
+                    requireRiderAuth(function (session) {
+                        var city = document.getElementById("hp-city").value;
+                        var date = document.getElementById("hp-date").value || todayStr;
+                        var time = document.getElementById("hp-time").value || nowTimeStr;
+                        var phone = document.getElementById("hp-phone").value.trim() || session.phone;
+                        var email = document.getElementById("hp-email").value.trim() || session.email;
+                        var fare = selectedHourly * hourlyRate;
+
+                        bookHourlyBtn.disabled = true;
+                        bookHourlyBtn.textContent = "Booking rental...";
+
+                        api("/api/rides/request", {
+                            method: "POST",
+                            body: JSON.stringify({
+                                trip_type: "hourly",
+                                duration_hours: selectedHourly,
+                                pickup_address: city,
+                                dropoff_address: city + " (Hourly standby)",
+                                scheduled_date: date,
+                                scheduled_time: time,
+                                passenger_phone: phone,
+                                passenger_email: email,
+                                estimated_fare: fare
+                            })
+                        }).then(function (res) {
+                            window.location.href = "/frontend/rider_dashboard.html";
+                        }).catch(function (err) {
+                            alert("Booking failed: " + err.message);
+                            bookHourlyBtn.disabled = false;
+                            bookHourlyBtn.textContent = "Book Hourly Rental";
+                        });
+                    });
+                });
+            }
+
+            // 3. Airport Transfer Booking
+            var bookAirportBtn = document.getElementById("bookAirportBtn");
+            if (bookAirportBtn) {
+                bookAirportBtn.addEventListener("click", function () {
+                    requireRiderAuth(function (session) {
+                        var terminal = document.getElementById("ap-terminal").value;
+                        var flight = document.getElementById("ap-flight").value.trim();
+                        var date = document.getElementById("ap-date").value || todayStr;
+                        var time = document.getElementById("ap-time").value || nowTimeStr;
+                        var phone = document.getElementById("ap-phone").value.trim() || session.phone;
+                        var email = document.getElementById("ap-email").value.trim() || session.email;
+                        var pickupAddr = airportDirection === "pickup" ? terminal : "City Center";
+                        var dropoffAddr = airportDirection === "pickup" ? "City Center" : terminal;
+
+                        bookAirportBtn.disabled = true;
+                        bookAirportBtn.textContent = "Booking transfer...";
+
+                        api("/api/rides/request", {
+                            method: "POST",
+                            body: JSON.stringify({
+                                trip_type: "airport",
+                                flight_number: flight,
+                                pickup_address: pickupAddr,
+                                dropoff_address: dropoffAddr,
+                                scheduled_date: date,
+                                scheduled_time: time,
+                                passenger_phone: phone,
+                                passenger_email: email,
+                                estimated_fare: 650
+                            })
+                        }).then(function (res) {
+                            window.location.href = "/frontend/rider_dashboard.html";
+                        }).catch(function (err) {
+                            alert("Booking failed: " + err.message);
+                            bookAirportBtn.disabled = false;
+                            bookAirportBtn.textContent = "Book Airport Transfer";
+                        });
+                    });
+                });
+            }
 
         })();
     </script>

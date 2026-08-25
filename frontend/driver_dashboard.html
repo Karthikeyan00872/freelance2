@@ -76,6 +76,24 @@
             margin-bottom: 24px
         }
 
+        .nav-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px
+        }
+
+        .nav-link {
+            color: var(--ink);
+            text-decoration: none;
+            font-weight: 700
+        }
+
+        .dashboard-links {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap
+        }
+
         .grid {
             display: grid;
             grid-template-columns: 1.15fr .85fr;
@@ -207,40 +225,382 @@
         <section class="nav">
             <div><span class="eyebrow">Driver Dashboard</span>
                 <h1>Work console</h1>
-            </div><button class="btn" id="onlineToggle">Go Online</button>
+            </div><nav class="dashboard-links"><a class="nav-link" href="/#home">Home</a><a class="nav-link" href="/#oneway">Oneway Trip</a><a class="nav-link" href="/#hourly">Hourly Rental</a><a class="nav-link" href="/#airport">Airport Transfer</a><a class="nav-link" href="/frontend/driver_dashboard.html">Driver Dashboard</a></nav><div class="nav-actions"><button class="btn" id="onlineToggle">Go Online</button><button class="btn" id="logoutButton" type="button">Log out</button></div>
         </section>
         <section class="grid">
             <div class="card">
-                <div class="map" aria-label="Google map for live route tracking"><iframe loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps?q=Tamil%20Nadu%20route%20map&output=embed" title="RaniCab Google map"></iframe><span class="pin">Pickup</span><span
-                        class="car">🚕 You</span></div>
+                <div class="map" aria-label="Google map for live route tracking">
+                    <iframe id="driverMapFrame" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps?q=Madurai%2C%20Tamil%20Nadu&output=embed" title="RaniCab Google map"></iframe>
+                    <span class="pin" id="tripPin">Pickup</span>
+                    <span class="car" id="driverMarker">🚕 You</span>
+                </div>
             </div>
-            <aside class="card"><span class="badge">Waiting for requests...</span>
+            <aside class="card">
+                <span class="badge" id="driverStatusBadge">Offline · Tap Go Online</span>
                 <h2 style="margin-top:16px">Ride Requests & Trip Details</h2>
                 <div class="list">
-                    <div class="row"><span>Pickup</span><strong>Listening nearby</strong></div>
-                    <div class="row"><span>Destination</span><strong>Incoming request</strong></div>
-                    <div class="row"><span>Estimated Fare</span><strong>₹ --</strong></div>
+                    <div class="row"><span>Pickup</span><strong id="driverPickup">Listening nearby</strong></div>
+                    <div class="row"><span>Destination</span><strong id="driverDropoff">Incoming request</strong></div>
+                    <div class="row"><span>Estimated Fare</span><strong id="driverFare">₹ --</strong></div>
                 </div>
                 <h2 style="margin-top:24px">Passenger Info</h2>
-                <div class="row"><span>Rider rating</span><strong>★★★★★</strong></div><button class="btn"
-                    style="margin-top:18px">Call Rider</button>
+                <div class="list">
+                    <div class="row"><span>Name</span><strong id="riderName">Assigned after request</strong></div>
+                    <div class="row"><span>Rider rating</span><strong id="riderRating">★★★★★</strong></div>
+                </div>
+                <div style="display:flex; flex-direction:column; gap:10px; margin-top:18px;">
+                    <div style="display:flex; gap:10px;">
+                        <button class="btn" id="acceptRideBtn" style="flex:1; background:var(--green); color:#fff; box-shadow:0 6px 0 var(--green-dark); display:none;" type="button">Accept Ride</button>
+                        <button class="btn" id="startRideBtn" style="flex:1; background:var(--marigold); display:none;" type="button">Start Trip</button>
+                        <button class="btn" id="completeRideBtn" style="flex:1; background:var(--green); color:#fff; box-shadow:0 6px 0 var(--green-dark); display:none;" type="button">Complete Trip</button>
+                    </div>
+                    <button class="btn" id="callRiderBtn" type="button">Call Rider</button>
+                </div>
             </aside>
         </section>
         <section class="card" style="margin-top:22px"><span class="eyebrow">Performance & Earnings</span>
             <div class="grid" style="margin-top:12px">
                 <div>
-                    <div class="metric">12 Rides Completed</div>
-                    <p class="muted">Today's earnings and completed orders update after every trip.</p>
+                    <div class="metric" id="metricText">0 Rides Completed</div>
+                    <p class="muted" id="metricEarnings">Today's earnings: ₹ 0</p>
                 </div>
-                <div class="chart"><span class="bar" style="height:45%"></span><span class="bar"
-                        style="height:65%"></span><span class="bar" style="height:52%"></span><span class="bar"
-                        style="height:80%"></span><span class="bar" style="height:74%"></span><span class="bar"
-                        style="height:60%"></span><span class="bar" style="height:90%"></span></div>
+                <div class="chart" id="chartContainer">
+                    <span class="bar" style="height:20%" title="Mon"></span>
+                    <span class="bar" style="height:35%" title="Tue"></span>
+                    <span class="bar" style="height:25%" title="Wed"></span>
+                    <span class="bar" style="height:50%" title="Thu"></span>
+                    <span class="bar" style="height:60%" title="Fri"></span>
+                    <span class="bar" style="height:45%" title="Sat"></span>
+                    <span class="bar" style="height:70%" title="Sun"></span>
+                </div>
             </div>
         </section>
     </main>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-    <script>const socket = window.io && io(); socket && socket.on('ride_updated', e => console.log('ride update', e)); socket && socket.on('driver_location', e => console.log('driver location', e));</script>
+    <script>
+        (function () {
+            "use strict";
+
+            var session = null;
+            try {
+                session = JSON.parse(localStorage.getItem('ranicab-session') || 'null');
+            } catch (e) {}
+
+            if (!session || session.role !== 'driver') {
+                window.location.href = '/';
+                return;
+            }
+
+            var apiBase = window.RANICAB_API_BASE || (window.location.port === '5000' ? window.location.origin : 'http://localhost:5000');
+            var isOnline = false;
+            var currentRide = null;
+            var assignedRiderPhone = "";
+            var locationInterval = null;
+
+            // Default driver coordinates (Madurai center)
+            var driverLng = 78.1198;
+            var driverLat = 9.9252;
+
+            function api(path, options) {
+                return fetch(apiBase + path, Object.assign({
+                    credentials: "include",
+                    headers: { "Content-Type": "application/json" }
+                }, options || {})).then(function (res) {
+                    return res.json().then(function (body) {
+                        if (!res.ok) throw new Error(body.error || "Request failed");
+                        return body;
+                    });
+                });
+            }
+
+            document.getElementById('logoutButton').addEventListener('click', function () {
+                api('/api/auth/logout', { method: 'POST' })
+                    .catch(function () {})
+                    .finally(function () {
+                        localStorage.removeItem('ranicab-session');
+                        window.location.href = '/';
+                    });
+            });
+
+            var onlineToggle = document.getElementById('onlineToggle');
+            var badgeEl = document.getElementById('driverStatusBadge');
+            var pickupEl = document.getElementById('driverPickup');
+            var dropoffEl = document.getElementById('driverDropoff');
+            var fareEl = document.getElementById('driverFare');
+            var riderNameEl = document.getElementById('riderName');
+            var riderRatingEl = document.getElementById('riderRating');
+            var acceptRideBtn = document.getElementById('acceptRideBtn');
+            var startRideBtn = document.getElementById('startRideBtn');
+            var completeRideBtn = document.getElementById('completeRideBtn');
+            var callRiderBtn = document.getElementById('callRiderBtn');
+            var metricText = document.getElementById('metricText');
+            var metricEarnings = document.getElementById('metricEarnings');
+            var mapFrame = document.getElementById('driverMapFrame');
+
+            function updateOnlineUI(status) {
+                isOnline = !!status;
+                if (isOnline) {
+                    onlineToggle.textContent = "Go Offline";
+                    onlineToggle.style.background = "var(--ink)";
+                    onlineToggle.style.color = "#fff";
+                    onlineToggle.style.boxShadow = "0 6px 0 #000";
+                    if (!currentRide) {
+                        badgeEl.textContent = "Online · Listening for requests";
+                        badgeEl.style.background = "#d4edda";
+                        badgeEl.style.color = "#155724";
+                    }
+                    startLocationBroadcast();
+                } else {
+                    onlineToggle.textContent = "Go Online";
+                    onlineToggle.style.background = "var(--marigold)";
+                    onlineToggle.style.color = "var(--ink)";
+                    onlineToggle.style.boxShadow = "0 6px 0 var(--marigold-dark)";
+                    if (!currentRide) {
+                        badgeEl.textContent = "Offline · Tap Go Online";
+                        badgeEl.style.background = "#FBE7C6";
+                        badgeEl.style.color = "var(--marigold-dark)";
+                    }
+                    stopLocationBroadcast();
+                }
+            }
+
+            onlineToggle.addEventListener('click', function () {
+                var targetStatus = !isOnline;
+                api('/api/driver/toggle-online', {
+                    method: 'POST',
+                    body: JSON.stringify({ is_online: targetStatus })
+                }).then(function (res) {
+                    updateOnlineUI(res.is_online);
+                    if (res.is_online) {
+                        checkForRequests();
+                    }
+                }).catch(function (err) {
+                    alert("Status update failed: " + err.message);
+                });
+            });
+
+            callRiderBtn.addEventListener('click', function () {
+                if (assignedRiderPhone) {
+                    window.location.href = "tel:" + assignedRiderPhone;
+                } else {
+                    alert("Rider contact is not available for this trip.");
+                }
+            });
+
+            acceptRideBtn.addEventListener('click', function () {
+                if (!currentRide) return;
+                acceptRideBtn.disabled = true;
+                api('/api/rides/' + currentRide.id + '/accept', { method: 'POST' })
+                    .then(function (res) {
+                        alert("Ride accepted! Head to the pickup location.");
+                        displayRide(res.ride);
+                    })
+                    .catch(function (err) {
+                        alert("Could not accept ride: " + err.message);
+                        checkForRequests();
+                    })
+                    .finally(function () {
+                        acceptRideBtn.disabled = false;
+                    });
+            });
+
+            startRideBtn.addEventListener('click', function () {
+                if (!currentRide) return;
+                startRideBtn.disabled = true;
+                api('/api/rides/' + currentRide.id + '/start', { method: 'POST' })
+                    .then(function (res) {
+                        alert("Trip started. Drive safely to destination.");
+                        displayRide(res.ride);
+                    })
+                    .catch(function (err) {
+                        alert("Could not start trip: " + err.message);
+                    })
+                    .finally(function () {
+                        startRideBtn.disabled = false;
+                    });
+            });
+
+            completeRideBtn.addEventListener('click', function () {
+                if (!currentRide) return;
+                if (!confirm("Are you sure you want to complete this ride?")) return;
+                completeRideBtn.disabled = true;
+                api('/api/rides/' + currentRide.id + '/complete', {
+                    method: 'POST',
+                    body: JSON.stringify({ fare: currentRide.fare })
+                }).then(function () {
+                    alert("Trip completed successfully! Payment recorded.");
+                    currentRide = null;
+                    displayRide(null);
+                    loadPerformance();
+                }).catch(function (err) {
+                    alert("Could not complete trip: " + err.message);
+                }).finally(function () {
+                    completeRideBtn.disabled = false;
+                });
+            });
+
+            function displayRide(ride) {
+                currentRide = ride;
+                acceptRideBtn.style.display = "none";
+                startRideBtn.style.display = "none";
+                completeRideBtn.style.display = "none";
+
+                if (!ride) {
+                    pickupEl.textContent = isOnline ? "Listening nearby..." : "Offline";
+                    dropoffEl.textContent = isOnline ? "Waiting for request" : "—";
+                    fareEl.textContent = "₹ --";
+                    riderNameEl.textContent = "Assigned after request";
+                    riderRatingEl.textContent = "★★★★★";
+                    assignedRiderPhone = "";
+                    if (isOnline) {
+                        badgeEl.textContent = "Online · Listening for requests";
+                        badgeEl.style.background = "#d4edda";
+                        badgeEl.style.color = "#155724";
+                    }
+                    return;
+                }
+
+                pickupEl.textContent = ride.pickup_address || "Pickup location";
+                dropoffEl.textContent = ride.dropoff_address || "Destination";
+                fareEl.textContent = "₹ " + Number(ride.fare || 0).toLocaleString("en-IN");
+                riderNameEl.textContent = (ride.rider && ride.rider.name) || ride.rider_name || "Rider";
+                riderRatingEl.textContent = ((ride.rider && ride.rider.rating) || 5.0) + " ★";
+                assignedRiderPhone = (ride.rider && ride.rider.phone) || ride.rider_phone || "";
+
+                if (ride.pickup_address && mapFrame) {
+                    mapFrame.src = "https://www.google.com/maps?q=" + encodeURIComponent(ride.pickup_address + ", Tamil Nadu") + "&output=embed";
+                }
+
+                if (ride.status === "requested") {
+                    badgeEl.textContent = "New Ride Request!";
+                    badgeEl.style.background = "#fff3cd";
+                    badgeEl.style.color = "#856404";
+                    acceptRideBtn.style.display = "inline-flex";
+                } else if (ride.status === "accepted") {
+                    badgeEl.textContent = "Ride Accepted · Pick up passenger";
+                    badgeEl.style.background = "#d4edda";
+                    badgeEl.style.color = "#155724";
+                    startRideBtn.style.display = "inline-flex";
+                } else if (ride.status === "ongoing") {
+                    badgeEl.textContent = "Trip in Progress · Heading to drop";
+                    badgeEl.style.background = "#cce5ff";
+                    badgeEl.style.color = "#004085";
+                    completeRideBtn.style.display = "inline-flex";
+                }
+            }
+
+            function checkForRequests() {
+                api('/api/rides/active').then(function (res) {
+                    if (res && res.ride) {
+                        displayRide(res.ride);
+                        return;
+                    }
+                    if (isOnline) {
+                        api('/api/rides/available').then(function (avail) {
+                            if (avail && avail.rides && avail.rides.length > 0) {
+                                displayRide(avail.rides[0]);
+                            } else {
+                                displayRide(null);
+                            }
+                        }).catch(function () {});
+                    }
+                }).catch(function () {});
+            }
+
+            function loadPerformance() {
+                api('/api/driver/performance').then(function (data) {
+                    var completedCount = (data.today && data.today.completed) || 0;
+                    var earnings = (data.today && data.today.earnings) || 0;
+                    metricText.textContent = completedCount + " Rides Completed";
+                    metricEarnings.textContent = "Today's earnings: ₹ " + Number(earnings).toLocaleString("en-IN");
+
+                    var week = data.week || [];
+                    var maxRides = Math.max.apply(null, week.map(function (w) { return w.rides || 0; }).concat([1]));
+                    var chart = document.getElementById('chartContainer');
+                    if (chart) {
+                        var bars = chart.querySelectorAll('.bar');
+                        week.forEach(function (w, i) {
+                            if (bars[i]) {
+                                var pct = Math.max(15, Math.round(((w.rides || 0) / maxRides) * 90));
+                                bars[i].style.height = pct + "%";
+                            }
+                        });
+                    }
+                }).catch(function () {});
+            }
+
+            // Real-time location broadcast
+            function emitLocation() {
+                if (!socket || !isOnline) return;
+                // Slight simulated GPS jitter around base location
+                var jitterLng = driverLng + (Math.random() - 0.5) * 0.004;
+                var jitterLat = driverLat + (Math.random() - 0.5) * 0.004;
+                socket.emit("driver_location", {
+                    lng: jitterLng,
+                    lat: jitterLat,
+                    is_online: isOnline
+                });
+            }
+
+            function startLocationBroadcast() {
+                stopLocationBroadcast();
+                emitLocation();
+                locationInterval = setInterval(emitLocation, 5000);
+            }
+
+            function stopLocationBroadcast() {
+                if (locationInterval) {
+                    clearInterval(locationInterval);
+                    locationInterval = null;
+                }
+            }
+
+            // Initialize driver data
+            api('/api/auth/me').then(function (res) {
+                if (res && res.user) {
+                    if (res.user.driver_profile) {
+                        updateOnlineUI(res.user.driver_profile.is_online);
+                        if (res.user.driver_profile.current_location && res.user.driver_profile.current_location.coordinates) {
+                            driverLng = res.user.driver_profile.current_location.coordinates[0];
+                            driverLat = res.user.driver_profile.current_location.coordinates[1];
+                        }
+                    }
+                }
+                checkForRequests();
+                loadPerformance();
+            }).catch(function () {
+                checkForRequests();
+                loadPerformance();
+            });
+
+            // Socket.IO
+            var socket = window.io && io(apiBase, { withCredentials: true });
+            if (socket) {
+                socket.on('connect', function () {
+                    console.log('Driver connected to socket');
+                    if (isOnline) emitLocation();
+                });
+                socket.on('ride_request', function (payload) {
+                    console.log('Incoming ride request via socket:', payload);
+                    if (isOnline && (!currentRide || currentRide.status === "requested")) {
+                        displayRide(payload);
+                    }
+                });
+                socket.on('ride_updated', function (payload) {
+                    console.log('Ride update via socket:', payload);
+                    if (currentRide && currentRide.id === payload.id) {
+                        displayRide(payload);
+                    }
+                });
+            }
+
+            // Periodic polling fallback
+            setInterval(function () {
+                checkForRequests();
+            }, 6000);
+
+        }());
+    </script>
 </body>
 
 </html>

@@ -199,44 +199,352 @@
         <section class="nav">
             <div><span class="eyebrow">Secure Admin</span>
                 <h1>Business control panel</h1>
-            </div><button class="btn">Register Driver</button>
+            </div>
+            <div style="display:flex; gap:10px; align-items:center;">
+                <button class="btn" id="registerDriverBtn" type="button">Register Driver</button>
+                <button class="btn" id="adminLogoutBtn" style="background:var(--ink); color:#fff; box-shadow:0 6px 0 #000;" type="button">Log out</button>
+            </div>
         </section>
         <section class="card"><span class="eyebrow">Overall Revenue</span>
             <div class="grid" style="margin-top:16px">
                 <div class="list">
-                    <div class="row"><span>Total Revenue Today</span><strong>₹ 41,500</strong></div>
-                    <div class="row"><span>Total Revenue This Month</span><strong>₹ 8,72,000</strong></div>
-                    <div class="row"><span>All-Time Earnings</span><strong>₹ 48,20,000</strong></div>
+                    <div class="row"><span>Total Revenue Today</span><strong id="revenueToday">₹ 0</strong></div>
+                    <div class="row"><span>Total Revenue This Month</span><strong id="revenueMonth">₹ 0</strong></div>
+                    <div class="row"><span>All-Time Earnings</span><strong id="revenueAllTime">₹ 0</strong></div>
                 </div>
-                <div class="chart"><span class="bar" style="height:42%"></span><span class="bar"
-                        style="height:58%"></span><span class="bar" style="height:50%"></span><span class="bar"
-                        style="height:76%"></span><span class="bar" style="height:84%"></span><span class="bar"
-                        style="height:70%"></span><span class="bar" style="height:92%"></span></div>
+                <div class="chart" id="revenueChart">
+                    <span class="bar" style="height:42%"></span>
+                    <span class="bar" style="height:58%"></span>
+                    <span class="bar" style="height:50%"></span>
+                    <span class="bar" style="height:76%"></span>
+                    <span class="bar" style="height:84%"></span>
+                    <span class="bar" style="height:70%"></span>
+                    <span class="bar" style="height:92%"></span>
+                </div>
             </div>
         </section>
         <section class="grid" style="margin-top:22px">
             <div class="card">
                 <h2>Driver Information</h2>
-                <div class="list">
-                    <div class="row"><strong>Arun Kumar</strong><span class="badge">Online</span></div>
-                    <div class="row"><span>Toyota Etios · TN-01-AB-1234</span><strong>4.9 ★</strong></div>
-                    <div class="row"><strong>Meena Ravi</strong><span class="badge">Offline</span></div>
-                    <div class="row"><span>Swift Dzire · TN-02-CD-4567</span><strong>4.8 ★</strong></div>
+                <div class="list" id="driverRosterList">
+                    <div class="row"><span class="muted">Loading driver roster...</span></div>
                 </div>
             </div>
             <div class="card">
-                <h2>Settings</h2>
-                <div class="list">
-                    <div class="row"><span>Base fare</span><strong>₹80</strong></div>
-                    <div class="row"><span>Price / km</span><strong>₹18</strong></div>
-                    <div class="row"><span>Surge multiplier</span><strong>1.0x</strong></div>
-                    <div class="row"><span>Maintenance Mode</span><strong>Off</strong></div>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h2>Settings</h2>
+                    <button class="btn" id="editSettingsBtn" style="padding:6px 14px; font-size:12px;" type="button">Edit Settings</button>
                 </div>
+                <div class="list" id="settingsView">
+                    <div class="row"><span>Base fare</span><strong id="settingBaseFare">₹80</strong></div>
+                    <div class="row"><span>Price / km</span><strong id="settingPerKm">₹18</strong></div>
+                    <div class="row"><span>Surge multiplier</span><strong id="settingSurge">1.0x</strong></div>
+                    <div class="row"><span>Maintenance Mode</span><strong id="settingMaint">Off</strong></div>
+                </div>
+                <form id="settingsForm" style="display:none; margin-top:14px;">
+                    <div class="row"><span>Base fare (₹)</span><input type="number" id="inputBaseFare" class="input" style="width:110px; padding:6px 8px;" value="80"></div>
+                    <div class="row"><span>Price / km (₹)</span><input type="number" id="inputPerKm" class="input" style="width:110px; padding:6px 8px;" value="18"></div>
+                    <div class="row"><span>Surge multiplier</span><input type="number" step="0.1" id="inputSurge" class="input" style="width:110px; padding:6px 8px;" value="1.0"></div>
+                    <div class="row"><span>Maintenance Mode</span>
+                        <select id="inputMaint" class="input" style="width:110px; padding:6px 8px;">
+                            <option value="false">Off</option>
+                            <option value="true">On</option>
+                        </select>
+                    </div>
+                    <div style="display:flex; gap:10px; margin-top:14px;">
+                        <button class="btn" type="submit" style="flex:1; padding:10px;">Save Settings</button>
+                        <button class="btn" type="button" id="cancelSettingsBtn" style="flex:1; background:var(--paper); border:1px solid var(--border); box-shadow:none; padding:10px;">Cancel</button>
+                    </div>
+                </form>
             </div>
         </section>
     </main>
+
+    <!-- ADMIN LOGIN MODAL -->
+    <div id="adminLoginModal" style="position:fixed; inset:0; background:rgba(27,27,31,0.65); backdrop-filter:blur(3px); display:none; align-items:center; justify-content:center; z-index:1000; padding:20px;">
+        <div class="card" style="max-width:400px; width:100%;">
+            <span class="eyebrow">RaniCab Admin</span>
+            <h2 style="margin:10px 0 16px;">Admin Authentication</h2>
+            <form id="adminLoginForm">
+                <div class="list">
+                    <div class="field">
+                        <label style="font-size:12px; font-weight:700; text-transform:uppercase; color:var(--ink-soft); margin-bottom:4px; display:block;">Username</label>
+                        <input class="input" type="text" id="adminUser" placeholder="admin" required style="width:100%; padding:10px; border-radius:8px; border:1.5px solid var(--border);">
+                    </div>
+                    <div class="field">
+                        <label style="font-size:12px; font-weight:700; text-transform:uppercase; color:var(--ink-soft); margin-bottom:4px; display:block;">Password</label>
+                        <input class="input" type="password" id="adminPass" placeholder="••••••••" required style="width:100%; padding:10px; border-radius:8px; border:1.5px solid var(--border);">
+                    </div>
+                </div>
+                <p id="adminLoginError" style="color:var(--red); font-size:13px; margin:10px 0; display:none;">Invalid admin credentials</p>
+                <button class="btn" type="submit" style="width:100%; margin-top:14px;">Sign In to Console</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- REGISTER DRIVER MODAL -->
+    <div id="registerDriverModal" style="position:fixed; inset:0; background:rgba(27,27,31,0.65); backdrop-filter:blur(3px); display:none; align-items:center; justify-content:center; z-index:1000; padding:20px;">
+        <div class="card" style="max-width:440px; width:100%; max-height:90vh; overflow-y:auto;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span class="eyebrow">Driver Registration</span>
+                <button type="button" id="closeRegModalBtn" style="font-size:20px; font-weight:700; cursor:pointer;">✕</button>
+            </div>
+            <h2 style="margin:10px 0 16px;">Add New Fleet Driver</h2>
+            <form id="registerDriverForm">
+                <div class="list">
+                    <div class="field">
+                        <label style="font-size:12px; font-weight:700; text-transform:uppercase; color:var(--ink-soft); display:block; margin-bottom:4px;">Full Name</label>
+                        <input class="input" type="text" id="drvName" placeholder="e.g. Arun Kumar" required style="width:100%; padding:10px; border-radius:8px; border:1.5px solid var(--border);">
+                    </div>
+                    <div class="field">
+                        <label style="font-size:12px; font-weight:700; text-transform:uppercase; color:var(--ink-soft); display:block; margin-bottom:4px;">Mobile Number</label>
+                        <input class="input" type="tel" id="drvPhone" placeholder="98765 43210" required style="width:100%; padding:10px; border-radius:8px; border:1.5px solid var(--border);">
+                    </div>
+                    <div class="field">
+                        <label style="font-size:12px; font-weight:700; text-transform:uppercase; color:var(--ink-soft); display:block; margin-bottom:4px;">Email (Optional)</label>
+                        <input class="input" type="email" id="drvEmail" placeholder="driver@email.com" style="width:100%; padding:10px; border-radius:8px; border:1.5px solid var(--border);">
+                    </div>
+                    <div class="field">
+                        <label style="font-size:12px; font-weight:700; text-transform:uppercase; color:var(--ink-soft); display:block; margin-bottom:4px;">Vehicle Model</label>
+                        <select class="input" id="drvModel" style="width:100%; padding:10px; border-radius:8px; border:1.5px solid var(--border);">
+                            <option value="Sedan">Sedan (Dzire / Etios)</option>
+                            <option value="Mini">Mini (WagonR / Indica)</option>
+                            <option value="SUV">SUV (Innova / Ertiga)</option>
+                            <option value="Traveller">Traveller (12-Seater)</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label style="font-size:12px; font-weight:700; text-transform:uppercase; color:var(--ink-soft); display:block; margin-bottom:4px;">License Plate Number</label>
+                        <input class="input" type="text" id="drvPlate" placeholder="TN-01-AB-1234" required style="width:100%; padding:10px; border-radius:8px; border:1.5px solid var(--border);">
+                    </div>
+                    <div class="field">
+                        <label style="font-size:12px; font-weight:700; text-transform:uppercase; color:var(--ink-soft); display:block; margin-bottom:4px;">Operating City</label>
+                        <select class="input" id="drvCity" style="width:100%; padding:10px; border-radius:8px; border:1.5px solid var(--border);">
+                            <option value="madurai">Madurai</option>
+                            <option value="chennai">Chennai</option>
+                            <option value="coimbatore">Coimbatore</option>
+                            <option value="trichy">Trichy</option>
+                            <option value="salem">Salem</option>
+                            <option value="tirupur">Tirupur</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="btn" type="submit" style="width:100%; margin-top:18px;">Create Driver Account</button>
+            </form>
+            <div id="regSuccessBox" style="display:none; text-align:center; padding:16px 0;">
+                <span class="badge" style="background:#d4edda; color:#155724; margin-bottom:12px;">Driver Registered Successfully</span>
+                <h3 style="margin:10px 0;">Driver Login Credentials</h3>
+                <div style="background:var(--paper); padding:12px; border-radius:8px; text-align:left; font-family:'IBM Plex Mono', monospace; font-size:13px; margin-bottom:16px;">
+                    <div><strong>Driver ID / Username:</strong> <span id="credUsername"></span></div>
+                    <div><strong>Password:</strong> <span id="credPassword"></span></div>
+                </div>
+                <p class="muted" style="font-size:12px; margin-bottom:14px;">Please share these credentials with the driver so they can log in via Driver Login.</p>
+                <button class="btn" type="button" id="doneRegBtn" style="width:100%;">Done</button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-    <script>const socket = window.io && io(); socket && socket.on('ride_updated', e => console.log('ride update', e)); socket && socket.on('driver_location', e => console.log('driver location', e));</script>
+    <script>
+        (function () {
+            "use strict";
+
+            var apiBase = window.RANICAB_API_BASE || (window.location.port === '5000' ? window.location.origin : 'http://localhost:5000');
+
+            function api(path, options) {
+                return fetch(apiBase + path, Object.assign({
+                    credentials: "include",
+                    headers: { "Content-Type": "application/json" }
+                }, options || {})).then(function (res) {
+                    return res.json().then(function (body) {
+                        if (!res.ok) throw new Error(body.error || "Request failed");
+                        return body;
+                    });
+                });
+            }
+
+            var adminLoginModal = document.getElementById('adminLoginModal');
+            var adminLoginForm = document.getElementById('adminLoginForm');
+            var adminLoginError = document.getElementById('adminLoginError');
+            var adminLogoutBtn = document.getElementById('adminLogoutBtn');
+
+            var registerDriverModal = document.getElementById('registerDriverModal');
+            var registerDriverBtn = document.getElementById('registerDriverBtn');
+            var closeRegModalBtn = document.getElementById('closeRegModalBtn');
+            var registerDriverForm = document.getElementById('registerDriverForm');
+            var regSuccessBox = document.getElementById('regSuccessBox');
+            var doneRegBtn = document.getElementById('doneRegBtn');
+
+            var editSettingsBtn = document.getElementById('editSettingsBtn');
+            var cancelSettingsBtn = document.getElementById('cancelSettingsBtn');
+            var settingsView = document.getElementById('settingsView');
+            var settingsForm = document.getElementById('settingsForm');
+
+            function checkAdminAuth() {
+                api('/api/admin/overview')
+                    .then(function (data) {
+                        adminLoginModal.style.display = 'none';
+                        renderOverview(data);
+                    })
+                    .catch(function () {
+                        adminLoginModal.style.display = 'flex';
+                    });
+            }
+
+            adminLoginForm.addEventListener('submit', function (e) {
+                e.preventDefault();
+                var u = document.getElementById('adminUser').value.trim();
+                var p = document.getElementById('adminPass').value;
+                api('/api/admin/login', {
+                    method: 'POST',
+                    body: JSON.stringify({ username: u, password: p })
+                }).then(function () {
+                    adminLoginError.style.display = 'none';
+                    adminLoginModal.style.display = 'none';
+                    checkAdminAuth();
+                }).catch(function (err) {
+                    adminLoginError.textContent = err.message;
+                    adminLoginError.style.display = 'block';
+                });
+            });
+
+            adminLogoutBtn.addEventListener('click', function () {
+                api('/api/admin/logout', { method: 'POST' })
+                    .finally(function () {
+                        window.location.href = '/';
+                    });
+            });
+
+            function renderOverview(data) {
+                if (data.revenue) {
+                    document.getElementById('revenueToday').textContent = '₹ ' + Number(data.revenue.today || 0).toLocaleString('en-IN');
+                    document.getElementById('revenueMonth').textContent = '₹ ' + Number(data.revenue.month || 0).toLocaleString('en-IN');
+                    document.getElementById('revenueAllTime').textContent = '₹ ' + Number(data.revenue.all_time || 0).toLocaleString('en-IN');
+                }
+
+                var rosterEl = document.getElementById('driverRosterList');
+                if (rosterEl) {
+                    rosterEl.innerHTML = '';
+                    var drivers = data.drivers || [];
+                    if (drivers.length === 0) {
+                        rosterEl.innerHTML = '<div class="row"><span class="muted">No drivers registered yet.</span></div>';
+                    } else {
+                        drivers.forEach(function (d) {
+                            var row1 = document.createElement('div');
+                            row1.className = 'row';
+                            var isOnline = d.is_online;
+                            var badge = isOnline ? '<span class="badge" style="background:#d4edda; color:#155724;">Online</span>' : '<span class="badge">Offline</span>';
+                            row1.innerHTML = '<strong>' + (d.name || 'Driver') + ' (' + (d.username || '') + ')</strong>' + badge;
+
+                            var row2 = document.createElement('div');
+                            row2.className = 'row';
+                            row2.innerHTML = '<span class="muted">' + (d.vehicle_model || 'Sedan') + ' · ' + (d.license_plate || 'TN-01') + ' · ' + (d.phone || '') + '</span><strong>' + (d.rating || 5.0) + ' ★</strong>';
+
+                            rosterEl.appendChild(row1);
+                            rosterEl.appendChild(row2);
+                        });
+                    }
+                }
+
+                if (data.pricing) {
+                    document.getElementById('settingBaseFare').textContent = '₹' + (data.pricing.base_fare || 80);
+                    document.getElementById('settingPerKm').textContent = '₹' + (data.pricing.price_per_km || 18);
+                    document.getElementById('settingSurge').textContent = (data.pricing.surge_multiplier || 1.0) + 'x';
+                    document.getElementById('settingMaint').textContent = data.pricing.maintenance_mode ? 'On' : 'Off';
+
+                    document.getElementById('inputBaseFare').value = data.pricing.base_fare || 80;
+                    document.getElementById('inputPerKm').value = data.pricing.price_per_km || 18;
+                    document.getElementById('inputSurge').value = data.pricing.surge_multiplier || 1.0;
+                    document.getElementById('inputMaint').value = data.pricing.maintenance_mode ? 'true' : 'false';
+                }
+            }
+
+            // Driver registration modal
+            registerDriverBtn.addEventListener('click', function () {
+                registerDriverForm.reset();
+                registerDriverForm.style.display = 'block';
+                regSuccessBox.style.display = 'none';
+                registerDriverModal.style.display = 'flex';
+            });
+            closeRegModalBtn.addEventListener('click', function () {
+                registerDriverModal.style.display = 'none';
+            });
+            doneRegBtn.addEventListener('click', function () {
+                registerDriverModal.style.display = 'none';
+                checkAdminAuth();
+            });
+
+            registerDriverForm.addEventListener('submit', function (e) {
+                e.preventDefault();
+                var payload = {
+                    name: document.getElementById('drvName').value.trim(),
+                    phone: document.getElementById('drvPhone').value.trim(),
+                    email: document.getElementById('drvEmail').value.trim(),
+                    vehicle_model: document.getElementById('drvModel').value,
+                    license_plate: document.getElementById('drvPlate').value.trim(),
+                    city: document.getElementById('drvCity').value
+                };
+
+                api('/api/admin/drivers', {
+                    method: 'POST',
+                    body: JSON.stringify(payload)
+                }).then(function (res) {
+                    registerDriverForm.style.display = 'none';
+                    document.getElementById('credUsername').textContent = res.credentials.username;
+                    document.getElementById('credPassword').textContent = res.credentials.password;
+                    regSuccessBox.style.display = 'block';
+                }).catch(function (err) {
+                    alert('Error creating driver: ' + err.message);
+                });
+            });
+
+            // Settings edit
+            editSettingsBtn.addEventListener('click', function () {
+                settingsView.style.display = 'none';
+                settingsForm.style.display = 'block';
+                editSettingsBtn.style.display = 'none';
+            });
+            cancelSettingsBtn.addEventListener('click', function () {
+                settingsForm.style.display = 'none';
+                settingsView.style.display = 'grid';
+                editSettingsBtn.style.display = 'inline-flex';
+            });
+            settingsForm.addEventListener('submit', function (e) {
+                e.preventDefault();
+                var payload = {
+                    base_fare: parseFloat(document.getElementById('inputBaseFare').value),
+                    price_per_km: parseFloat(document.getElementById('inputPerKm').value),
+                    surge_multiplier: parseFloat(document.getElementById('inputSurge').value),
+                    maintenance_mode: document.getElementById('inputMaint').value === 'true'
+                };
+                api('/api/admin/settings', {
+                    method: 'POST',
+                    body: JSON.stringify(payload)
+                }).then(function (res) {
+                    alert('Settings updated successfully');
+                    settingsForm.style.display = 'none';
+                    settingsView.style.display = 'grid';
+                    editSettingsBtn.style.display = 'inline-flex';
+                    checkAdminAuth();
+                }).catch(function (err) {
+                    alert('Could not update settings: ' + err.message);
+                });
+            });
+
+            checkAdminAuth();
+
+            // Socket.IO updates
+            var socket = window.io && io(apiBase, { withCredentials: true });
+            if (socket) {
+                socket.on('ride_updated', function () {
+                    checkAdminAuth();
+                });
+            }
+
+            setInterval(checkAdminAuth, 10000);
+
+        }());
+    </script>
 </body>
 
 </html>

@@ -76,6 +76,24 @@
             margin-bottom: 24px
         }
 
+        .nav-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px
+        }
+
+        .nav-link {
+            color: var(--ink);
+            text-decoration: none;
+            font-weight: 700
+        }
+
+        .dashboard-links {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap
+        }
+
         .grid {
             display: grid;
             grid-template-columns: 1.15fr .85fr;
@@ -207,36 +225,262 @@
         <section class="nav">
             <div><span class="eyebrow">Rider Dashboard</span>
                 <h1>Your trip command center</h1>
-            </div><button class="btn">Book a Cab</button>
+            </div><nav class="dashboard-links"><a class="nav-link" href="/#home">Home</a><a class="nav-link" href="/#oneway">Oneway Trip</a><a class="nav-link" href="/#hourly">Hourly Rental</a><a class="nav-link" href="/#airport">Airport Transfer</a><a class="nav-link" href="/frontend/rider_dashboard.html">Rider Dashboard</a></nav><div class="nav-actions"><button class="btn" id="logoutButton" type="button">Log out</button></div>
         </section>
         <section class="grid">
             <div class="card">
-                <div class="map" aria-label="Google map for live route tracking"><iframe loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps?q=Rani%20Cab%20Tamil%20Nadu&output=embed" title="RaniCab Google map"></iframe><span class="pin">Pickup</span><span
-                        class="car">🚕 Driver</span></div>
+                <div class="map" id="mapContainer" aria-label="Google map for live route tracking">
+                    <iframe id="mapFrame" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps?q=Madurai%2C%20Tamil%20Nadu&output=embed" title="RaniCab Google map"></iframe>
+                    <span class="pin" id="pickupPin">Pickup</span>
+                    <span class="car" id="driverCar">🚕 Driver</span>
+                </div>
             </div>
-            <aside class="card"><span class="badge">Searching for a driver...</span>
+            <aside class="card">
+                <span class="badge" id="rideStatusBadge">Searching for a driver...</span>
                 <div class="list">
-                    <div class="row"><span class="muted">Pickup</span><strong id="pickup">Current location</strong>
-                    </div>
-                    <div class="row"><span class="muted">Destination</span><strong id="dropoff">Set destination</strong>
-                    </div>
+                    <div class="row"><span class="muted">Pickup</span><strong id="pickup">Current location</strong></div>
+                    <div class="row"><span class="muted">Destination</span><strong id="dropoff">Set destination</strong></div>
                     <div class="row"><span class="muted">Fare</span><strong id="fare">Calculating</strong></div>
                 </div>
                 <h2 style="margin-top:24px">Driver Information</h2>
                 <div class="list">
-                    <div class="row"><span>Name</span><strong>Assigned after accept</strong></div>
-                    <div class="row"><span>Vehicle</span><strong>Model & plate</strong></div>
-                    <div class="row"><span>Rating</span><strong>★★★★★</strong></div>
-                </div><button class="btn" style="margin-top:18px">Call Driver</button>
+                    <div class="row"><span>Name</span><strong id="driverName">Assigned after accept</strong></div>
+                    <div class="row"><span>Vehicle</span><strong id="driverVehicle">Model & plate</strong></div>
+                    <div class="row"><span>Rating</span><strong id="driverRating">★★★★★</strong></div>
+                </div>
+                <div style="display:flex; gap:10px; margin-top:18px; flex-wrap:wrap;">
+                    <button class="btn" id="callDriverBtn" style="flex:1" type="button">Call Driver</button>
+                    <button class="btn" id="cancelRideBtn" style="flex:1; background:var(--ink); color:#fff; box-shadow:0 6px 0 #000;" type="button">Cancel Ride</button>
+                </div>
             </aside>
         </section>
         <section class="card" style="margin-top:22px">
             <h2>Ride History</h2>
-            <p class="muted">Completed trips are saved here automatically.</p>
+            <p class="muted" id="historySub">Completed trips are saved here automatically.</p>
+            <div id="historyList" class="list"></div>
         </section>
     </main>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-    <script>const socket = window.io && io(); socket && socket.on('ride_updated', e => console.log('ride update', e)); socket && socket.on('driver_location', e => console.log('driver location', e));</script>
+    <script>
+        (function () {
+            "use strict";
+
+            var session = null;
+            try {
+                session = JSON.parse(localStorage.getItem('ranicab-session') || 'null');
+            } catch (e) {}
+
+            if (!session || session.role !== 'rider') {
+                window.location.href = '/';
+                return;
+            }
+
+            var apiBase = window.RANICAB_API_BASE || (window.location.port === '5000' ? window.location.origin : 'http://localhost:5000');
+            var currentActiveRide = null;
+            var assignedDriverPhone = "";
+
+            function api(path, options) {
+                return fetch(apiBase + path, Object.assign({
+                    credentials: "include",
+                    headers: { "Content-Type": "application/json" }
+                }, options || {})).then(function (res) {
+                    return res.json().then(function (body) {
+                        if (!res.ok) throw new Error(body.error || "Request failed");
+                        return body;
+                    });
+                });
+            }
+
+            document.getElementById('logoutButton').addEventListener('click', function () {
+                api('/api/auth/logout', { method: 'POST' })
+                    .catch(function () {})
+                    .finally(function () {
+                        localStorage.removeItem('ranicab-session');
+                        window.location.href = '/';
+                    });
+            });
+
+            var badgeEl = document.getElementById('rideStatusBadge');
+            var pickupEl = document.getElementById('pickup');
+            var dropoffEl = document.getElementById('dropoff');
+            var fareEl = document.getElementById('fare');
+            var driverNameEl = document.getElementById('driverName');
+            var driverVehicleEl = document.getElementById('driverVehicle');
+            var driverRatingEl = document.getElementById('driverRating');
+            var callDriverBtn = document.getElementById('callDriverBtn');
+            var cancelRideBtn = document.getElementById('cancelRideBtn');
+            var driverCar = document.getElementById('driverCar');
+            var mapFrame = document.getElementById('mapFrame');
+
+            callDriverBtn.addEventListener('click', function () {
+                if (assignedDriverPhone) {
+                    window.location.href = "tel:" + assignedDriverPhone;
+                } else {
+                    alert("A driver has not accepted this ride yet.");
+                }
+            });
+
+            cancelRideBtn.addEventListener('click', function () {
+                if (!currentActiveRide) {
+                    alert("No active ride to cancel.");
+                    return;
+                }
+                if (!confirm("Are you sure you want to cancel this ride?")) return;
+
+                cancelRideBtn.disabled = true;
+                api('/api/rides/' + currentActiveRide.id + '/cancel', { method: 'POST' })
+                    .then(function () {
+                        alert("Ride cancelled.");
+                        loadActiveRide();
+                        loadHistory();
+                    })
+                    .catch(function (err) {
+                        alert("Could not cancel ride: " + err.message);
+                    })
+                    .finally(function () {
+                        cancelRideBtn.disabled = false;
+                    });
+            });
+
+            function updateRideUI(ride) {
+                currentActiveRide = ride;
+                if (!ride) {
+                    badgeEl.textContent = "No active ride";
+                    badgeEl.style.background = "#FBE7C6";
+                    badgeEl.style.color = "var(--marigold-dark)";
+                    pickupEl.textContent = "—";
+                    dropoffEl.textContent = "—";
+                    fareEl.textContent = "—";
+                    driverNameEl.textContent = "No driver assigned";
+                    driverVehicleEl.textContent = "—";
+                    driverRatingEl.textContent = "—";
+                    assignedDriverPhone = "";
+                    cancelRideBtn.style.display = "none";
+                    callDriverBtn.textContent = "Book a Ride";
+                    callDriverBtn.onclick = function () { window.location.href = "/#oneway"; };
+                    return;
+                }
+
+                cancelRideBtn.style.display = (ride.status === "requested" || ride.status === "accepted") ? "inline-flex" : "none";
+                callDriverBtn.textContent = "Call Driver";
+                callDriverBtn.onclick = function () {
+                    if (assignedDriverPhone) window.location.href = "tel:" + assignedDriverPhone;
+                    else alert("Driver not yet assigned.");
+                };
+
+                pickupEl.textContent = ride.pickup_address || "Pickup location";
+                dropoffEl.textContent = ride.dropoff_address || "Destination";
+                fareEl.textContent = ride.fare ? "₹" + Number(ride.fare).toLocaleString("en-IN") : "Calculating";
+
+                if (ride.pickup_address && mapFrame) {
+                    mapFrame.src = "https://www.google.com/maps?q=" + encodeURIComponent(ride.pickup_address + ", Tamil Nadu") + "&output=embed";
+                }
+
+                if (ride.status === "requested") {
+                    badgeEl.textContent = "Searching for a driver...";
+                    badgeEl.style.background = "#FBE7C6";
+                    badgeEl.style.color = "var(--marigold-dark)";
+                    driverNameEl.textContent = "Searching nearby...";
+                    driverVehicleEl.textContent = "Matching best vehicle";
+                    driverRatingEl.textContent = "★★★★★";
+                    assignedDriverPhone = "";
+                } else if (ride.status === "accepted") {
+                    badgeEl.textContent = "Driver accepted & on the way";
+                    badgeEl.style.background = "#d4edda";
+                    badgeEl.style.color = "#155724";
+                    if (ride.driver) {
+                        driverNameEl.textContent = ride.driver.name || "Driver";
+                        driverVehicleEl.textContent = (ride.driver.vehicle_model || "Sedan") + " · " + (ride.driver.license_plate || "TN-01-AB-1234");
+                        driverRatingEl.textContent = (ride.driver.rating || "5.0") + " ★";
+                        assignedDriverPhone = ride.driver.phone || "";
+                    }
+                } else if (ride.status === "ongoing") {
+                    badgeEl.textContent = "Trip in progress";
+                    badgeEl.style.background = "#cce5ff";
+                    badgeEl.style.color = "#004085";
+                    if (ride.driver) {
+                        driverNameEl.textContent = ride.driver.name || "Driver";
+                        driverVehicleEl.textContent = (ride.driver.vehicle_model || "Sedan") + " · " + (ride.driver.license_plate || "TN-01-AB-1234");
+                        driverRatingEl.textContent = (ride.driver.rating || "5.0") + " ★";
+                        assignedDriverPhone = ride.driver.phone || "";
+                    }
+                } else if (ride.status === "completed") {
+                    badgeEl.textContent = "Trip completed";
+                    badgeEl.style.background = "#e2e3e5";
+                    badgeEl.style.color = "#383d41";
+                }
+            }
+
+            function loadActiveRide() {
+                api('/api/rides/active')
+                    .then(function (data) {
+                        updateRideUI(data.ride);
+                    })
+                    .catch(function () {
+                        updateRideUI(null);
+                    });
+            }
+
+            function loadHistory() {
+                api('/api/rides/history')
+                    .then(function (data) {
+                        var listEl = document.getElementById('historyList');
+                        if (!listEl) return;
+                        listEl.innerHTML = "";
+                        var rides = data.rides || [];
+                        if (rides.length === 0) {
+                            listEl.innerHTML = '<div class="row"><span class="muted">No previous rides found. Book your first trip today!</span></div>';
+                            return;
+                        }
+                        rides.forEach(function (r) {
+                            var row = document.createElement('div');
+                            row.className = 'row';
+                            var dateStr = r.created_at ? new Date(r.created_at).toLocaleDateString("en-IN", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
+                            var statusBadge = r.status === "completed" ? '<span style="color:var(--green); font-weight:700;">Completed</span>' : (r.status === "cancelled" ? '<span style="color:var(--red); font-weight:700;">Cancelled</span>' : '<span style="color:var(--marigold-dark); font-weight:700;">' + r.status + '</span>');
+                            row.innerHTML = '<div><strong>' + (r.pickup_address || "Pickup") + ' → ' + (r.dropoff_address || "Drop") + '</strong><br><small class="muted">' + (r.trip_type ? r.trip_type.toUpperCase() : "TRIP") + ' · ' + dateStr + '</small></div><div><strong>₹' + Number(r.fare || 0).toLocaleString("en-IN") + '</strong><br><small>' + statusBadge + '</small></div>';
+                            listEl.appendChild(row);
+                        });
+                    })
+                    .catch(function () {});
+            }
+
+            loadActiveRide();
+            loadHistory();
+
+            // Socket.IO real-time connection
+            var socket = window.io && io(apiBase, { withCredentials: true });
+            if (socket) {
+                socket.on('connect', function () {
+                    console.log('Rider connected to socket');
+                });
+                socket.on('ride_updated', function (payload) {
+                    console.log('Live ride update received:', payload);
+                    updateRideUI(payload);
+                    loadHistory();
+                });
+                socket.on('driver_location', function (data) {
+                    console.log('Driver location update:', data);
+                    if (driverCar && data.location && data.location.coordinates) {
+                        // Animate or shift car marker slightly to indicate live motion
+                        var lat = data.location.coordinates[1];
+                        var lng = data.location.coordinates[0];
+                        var xPercent = 40 + ((lng * 100) % 25);
+                        var yPercent = 40 + ((lat * 100) % 25);
+                        driverCar.style.left = xPercent + "%";
+                        driverCar.style.top = yPercent + "%";
+                    }
+                });
+            }
+
+            // Periodic polling fallback
+            setInterval(function () {
+                if (currentActiveRide && currentActiveRide.status !== "completed" && currentActiveRide.status !== "cancelled") {
+                    loadActiveRide();
+                }
+            }, 8000);
+
+        }());
+    </script>
 </body>
 
 </html>
