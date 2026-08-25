@@ -94,6 +94,14 @@
             overflow: hidden
         }
 
+        .map iframe {
+            border: 0;
+            height: 430px;
+            inset: 0;
+            position: absolute;
+            width: 100%;
+        }
+
         .map:before {
             content: '';
             position: absolute;
@@ -203,7 +211,7 @@
         </section>
         <section class="grid">
             <div class="card">
-                <div class="map" aria-label="Live driver tracking map"><span class="pin">Pickup</span><span
+                <div class="map" aria-label="Google map for live route tracking"><iframe loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps?q=Rani%20Cab%20Tamil%20Nadu&output=embed" title="RaniCab Google map"></iframe><span class="pin">Pickup</span><span
                         class="car">🚕 Driver</span></div>
             </div>
             <aside class="card"><span class="badge">Searching for a driver...</span>

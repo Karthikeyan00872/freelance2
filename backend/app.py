@@ -1,9 +1,12 @@
 import os
 import secrets
+import smtplib
 from datetime import datetime, timezone, timedelta
 from functools import wraps
 
 from dotenv import load_dotenv
+from email.message import EmailMessage
+
 from flask import Flask, jsonify, request, session
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit, join_room
@@ -27,6 +30,7 @@ drivers = db.drivers
 rides = db.rides
 settings = db.settings
 promotions = db.promotions
+password_otps = db.password_otps
 
 for collection in (drivers, rides):
     for field in ("current_location", "pickup_location", "dropoff_location"):
@@ -41,6 +45,8 @@ drivers.create_index("user_id")
 drivers.create_index("is_online")
 rides.create_index([("rider_id", 1), ("status", 1)])
 rides.create_index([("driver_id", 1), ("status", 1)])
+password_otps.create_index("email")
+password_otps.create_index("expires_at", expireAfterSeconds=0)
 
 ACTIVE_STATUSES = ["requested", "accepted", "ongoing"]
 
@@ -72,6 +78,47 @@ def serialize(doc):
 def point(lng, lat):
     return {"type": "Point", "coordinates": [float(lng), float(lat)]}
 
+
+
+def send_mail(to_email, subject, body):
+    """Send transactional email with sender name RaniCab.
+
+    In development, if SMTP credentials are not configured, the message is logged
+    and the API still succeeds so local auth flows remain testable.
+    """
+    sender_email = os.getenv("SENDER_EMAIL") or os.getenv("sender_email")
+    sender_password = os.getenv("SENDER_APP_PASSWORD") or os.getenv("sender_app_password")
+    smtp_host = os.getenv("SMTP_HOST", "smtp.gmail.com")
+    smtp_port = int(os.getenv("SMTP_PORT", "587"))
+    if not sender_email or not sender_password or sender_email.startswith("replace-with"):
+        app.logger.warning("Email not sent; SMTP credentials are not configured. To=%s Subject=%s Body=%s", to_email, subject, body)
+        return False
+    msg = EmailMessage()
+    msg["From"] = f"RaniCab <{sender_email}>"
+    msg["To"] = to_email
+    msg["Subject"] = subject
+    msg.set_content(body)
+    with smtplib.SMTP(smtp_host, smtp_port, timeout=15) as smtp:
+        smtp.starttls()
+        smtp.login(sender_email, sender_password)
+        smtp.send_message(msg)
+    return True
+
+
+def create_or_update_google_user(profile, phone=""):
+    email = profile["email"].lower()
+    name = profile.get("name") or email.split("@")[0]
+    existing = users.find_one({"email": email})
+    update = {"$set": {"name": name, "email": email, "role": "rider", "google_sub": profile.get("sub"), "provider": "google", "updated_at": now()}}
+    if phone:
+        update["$set"]["phone"] = phone
+    if existing:
+        users.update_one({"_id": existing["_id"]}, update)
+        return users.find_one({"_id": existing["_id"]})
+    user = {**update["$set"], "phone": phone, "rating": 5.0, "created_at": now()}
+    result = users.insert_one(user)
+    user["_id"] = result.inserted_id
+    return user
 
 def current_user():
     user_id = session.get("user_id")
@@ -110,10 +157,13 @@ def register_rider():
     data = request.get_json(force=True)
     if data.get("role", "rider") != "rider":
         return jsonify({"error": "Drivers must be registered by admin"}), 403
+    email = data["email"].lower()
+    if users.find_one({"email": email}):
+        return jsonify({"error": "An account with this email already exists"}), 409
     user = {
-        "name": data["name"], "email": data["email"].lower(), "phone": data.get("phone", ""),
+        "name": data["name"], "username": data.get("username", data["name"]), "email": email, "phone": data.get("phone", ""),
         "password_hash": generate_password_hash(data["password"]), "role": "rider", "rating": 5.0,
-        "created_at": now(),
+        "provider": "manual", "created_at": now(),
     }
     result = users.insert_one(user)
     user["_id"] = result.inserted_id
@@ -130,6 +180,66 @@ def login():
         return jsonify({"error": "Invalid credentials"}), 401
     session["user_id"] = str(user["_id"])
     return {"user": serialize(user)}
+
+
+@app.post("/api/auth/google")
+def google_auth():
+    data = request.get_json(force=True)
+    token = data.get("credential")
+    if not token:
+        return jsonify({"error": "Missing Google credential"}), 400
+    try:
+        from google.auth.transport import requests as google_requests
+        from google.oauth2 import id_token
+        profile = id_token.verify_oauth2_token(token, google_requests.Request(), os.getenv("GOOGLE_CLIENT_ID"))
+    except Exception as exc:
+        app.logger.warning("Google sign-in failed: %s", exc)
+        return jsonify({"error": "Google sign-in could not be verified"}), 401
+    if not profile.get("email_verified"):
+        return jsonify({"error": "Google email is not verified"}), 401
+    user = create_or_update_google_user(profile, data.get("phone", ""))
+    session["user_id"] = str(user["_id"])
+    return {"user": serialize(user)}
+
+
+@app.post("/api/auth/forgot-password/request")
+def forgot_password_request():
+    data = request.get_json(force=True)
+    email = data.get("email", "").lower().strip()
+    user = users.find_one({"email": email, "provider": {"$ne": "google"}, "password_hash": {"$exists": True}})
+    if not user:
+        return jsonify({"error": "Forgot password works only for manually signed-up accounts"}), 404
+    otp = f"{secrets.randbelow(1000000):06d}"
+    password_otps.delete_many({"email": email})
+    password_otps.insert_one({"email": email, "otp_hash": generate_password_hash(otp), "expires_at": now() + timedelta(minutes=10), "attempts": 0, "created_at": now()})
+    send_mail(email, "Your RaniCab password reset OTP", f"Hi {user.get('name', 'RaniCab rider')},\n\nYour RaniCab password reset OTP is {otp}. It expires in 10 minutes.\n\nIf you did not request this, please ignore this email.\n\nRaniCab")
+    return {"message": "OTP sent to your registered email"}
+
+
+@app.post("/api/auth/forgot-password/verify")
+def forgot_password_verify():
+    data = request.get_json(force=True)
+    email = data.get("email", "").lower().strip()
+    otp_doc = password_otps.find_one({"email": email})
+    new_password = data.get("password", "")
+    expires_at = otp_doc.get("expires_at") if otp_doc else None
+    if expires_at and expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if not otp_doc or not expires_at or expires_at < now():
+        return jsonify({"error": "OTP expired or invalid"}), 400
+    if otp_doc.get("attempts", 0) >= 5 or not check_password_hash(otp_doc.get("otp_hash", ""), data.get("otp", "")):
+        password_otps.update_one({"_id": otp_doc["_id"]}, {"$inc": {"attempts": 1}})
+        return jsonify({"error": "OTP expired or invalid"}), 400
+    if len(new_password) < 6:
+        return jsonify({"error": "Password must be at least 6 characters"}), 400
+    users.update_one({"email": email, "provider": {"$ne": "google"}}, {"$set": {"password_hash": generate_password_hash(new_password), "updated_at": now()}})
+    password_otps.delete_many({"email": email})
+    return {"message": "Password updated"}
+
+
+@app.get("/api/config")
+def public_config():
+    return {"google_client_id": os.getenv("GOOGLE_CLIENT_ID", "")}
 
 
 @app.post("/api/admin/login")
