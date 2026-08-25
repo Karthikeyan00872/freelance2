@@ -7,23 +7,69 @@ from functools import wraps
 from dotenv import load_dotenv
 from email.message import EmailMessage
 
-from flask import Flask, jsonify, request, session
+from flask import Flask, jsonify, request, send_from_directory, session
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit, join_room
 from pymongo import MongoClient, GEOSPHERE
+from pymongo.errors import DuplicateKeyError
 from redis import Redis
 from werkzeug.security import check_password_hash, generate_password_hash
 
-load_dotenv()
+PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+FRONTEND_DIR = os.path.join(PROJECT_DIR, "frontend")
+ASSETS_DIR = os.path.join(PROJECT_DIR, "src")
+load_dotenv(os.path.join(PROJECT_DIR, ".env"))
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", secrets.token_hex(32))
-CORS(app, supports_credentials=True)
-socketio = SocketIO(app, cors_allowed_origins=os.getenv("CORS_ORIGINS", "*"), async_mode="eventlet")
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_SECURE"] = False
+app.config["SESSION_COOKIE_HTTPONLY"] = True
 
-mongo = MongoClient(os.getenv("MONGODB_URI", "mongodb://localhost:27017/rani_cab"))
+cors_origins = [
+    "http://localhost:5500",
+    "http://127.0.0.1:5500",
+    "http://localhost:5000",
+    "http://127.0.0.1:5000",
+]
+env_origins = os.getenv("CORS_ORIGINS")
+if env_origins:
+    for origin in env_origins.split(","):
+        origin = origin.strip()
+        if origin and origin not in cors_origins:
+            cors_origins.append(origin)
+
+CORS(app, supports_credentials=True, origins=cors_origins)
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode=os.getenv("SOCKETIO_ASYNC_MODE", "threading"))
+
+mongo = MongoClient(os.getenv("MONGODB_URI", "mongodb://localhost:27017/rani_cab"), serverSelectionTimeoutMS=3000)
 db = mongo.get_default_database()
-redis_client = Redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"), decode_responses=True)
+
+# Redis with in-memory thread-safe fallback
+_DRIVER_LOCATIONS = {}
+try:
+    redis_client = Redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"), decode_responses=True, socket_timeout=1)
+except Exception:
+    redis_client = None
+
+def cache_set_driver_location(driver_id, lng, lat):
+    payload = {"lng": float(lng), "lat": float(lat), "updated_at": datetime.now(timezone.utc).isoformat()}
+    _DRIVER_LOCATIONS[str(driver_id)] = payload
+    if redis_client:
+        try:
+            redis_client.hset(f"driver_location:{driver_id}", mapping=payload)
+        except Exception:
+            pass
+
+def cache_get_driver_location(driver_id):
+    if redis_client:
+        try:
+            val = redis_client.hgetall(f"driver_location:{driver_id}")
+            if val:
+                return {"lng": float(val["lng"]), "lat": float(val["lat"]), "updated_at": val.get("updated_at")}
+        except Exception:
+            pass
+    return _DRIVER_LOCATIONS.get(str(driver_id))
 
 users = db.users
 drivers = db.drivers
@@ -32,32 +78,98 @@ settings = db.settings
 promotions = db.promotions
 password_otps = db.password_otps
 
+# Ensure Geo Indexes
 for collection in (drivers, rides):
     for field in ("current_location", "pickup_location", "dropoff_location"):
         try:
             collection.create_index([(field, GEOSPHERE)])
         except Exception:
             pass
-users.create_index("email", unique=True)
-users.create_index("username", sparse=True, unique=True)
-users.create_index("role")
-drivers.create_index("user_id")
-drivers.create_index("is_online")
-rides.create_index([("rider_id", 1), ("status", 1)])
-rides.create_index([("driver_id", 1), ("status", 1)])
-password_otps.create_index("email")
-password_otps.create_index("expires_at", expireAfterSeconds=0)
+
+try:
+    users.create_index("email", unique=True)
+    users.create_index("username", sparse=True, unique=True)
+    users.create_index("role")
+    drivers.create_index("user_id")
+    drivers.create_index("is_online")
+    rides.create_index([("rider_id", 1), ("status", 1)])
+    rides.create_index([("driver_id", 1), ("status", 1)])
+    password_otps.create_index("email")
+    password_otps.create_index("expires_at", expireAfterSeconds=0)
+except Exception:
+    pass
+
+# Ensure default business settings exist
+if not settings.find_one({"type": "pricing"}):
+    settings.insert_one({
+        "type": "pricing",
+        "base_fare": 80,
+        "price_per_km": 18,
+        "surge_multiplier": 1.0,
+        "maintenance_mode": False,
+        "updated_at": datetime.now(timezone.utc)
+    })
 
 ACTIVE_STATUSES = ["requested", "accepted", "ongoing"]
 
+# Tamil Nadu city coordinates mapping
+TN_CITIES = {
+    "madurai": {"lng": 78.1198, "lat": 9.9252, "name": "Madurai"},
+    "chennai": {"lng": 80.2707, "lat": 13.0827, "name": "Chennai"},
+    "coimbatore": {"lng": 76.9558, "lat": 11.0168, "name": "Coimbatore"},
+    "trichy": {"lng": 78.7047, "lat": 10.7905, "name": "Trichy"},
+    "salem": {"lng": 78.1460, "lat": 11.6643, "name": "Salem"},
+    "tirupur": {"lng": 77.3411, "lat": 11.1085, "name": "Tirupur"},
+    "madurai airport": {"lng": 78.0934, "lat": 9.8345, "name": "Madurai Airport (IXM)"},
+    "madurai airport (ixm)": {"lng": 78.0934, "lat": 9.8345, "name": "Madurai Airport (IXM)"},
+    "chennai airport": {"lng": 80.1709, "lat": 12.9941, "name": "Chennai Airport (MAA)"},
+    "chennai airport (maa)": {"lng": 80.1709, "lat": 12.9941, "name": "Chennai Airport (MAA)"},
+    "coimbatore airport": {"lng": 77.0434, "lat": 11.0298, "name": "Coimbatore Airport (CJB)"},
+    "coimbatore airport (cjb)": {"lng": 77.0434, "lat": 11.0298, "name": "Coimbatore Airport (CJB)"},
+    "trichy airport": {"lng": 78.7097, "lat": 10.7654, "name": "Trichy Airport (TRZ)"},
+    "trichy airport (trz)": {"lng": 78.7097, "lat": 10.7654, "name": "Trichy Airport (TRZ)"},
+}
+
+def resolve_location(address, lng=None, lat=None, default_city="madurai"):
+    if lng is not None and lat is not None:
+        try:
+            return point(float(lng), float(lat))
+        except (ValueError, TypeError):
+            pass
+    if address:
+        addr_lower = str(address).strip().lower()
+        for key, city in TN_CITIES.items():
+            if key in addr_lower:
+                return point(city["lng"], city["lat"])
+    def_city = TN_CITIES.get(default_city, TN_CITIES["madurai"])
+    return point(def_city["lng"], def_city["lat"])
+
+
+@app.get("/")
+def frontend_index():
+    return send_from_directory(FRONTEND_DIR, "index.html")
+
+
+@app.get("/frontend/<path:filename>")
+def frontend_file(filename):
+    return send_from_directory(FRONTEND_DIR, filename)
+
+
+@app.get("/src/<path:filename>")
+def frontend_asset(filename):
+    return send_from_directory(ASSETS_DIR, filename)
+
 
 def now():
-    return datetime.now(timezone.utc)
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 def oid(value):
     from bson import ObjectId
-    return ObjectId(value) if value else None
+    try:
+        return ObjectId(value) if value else None
+    except Exception:
+        return None
 
 
 def serialize(doc):
@@ -65,6 +177,7 @@ def serialize(doc):
         return None
     doc = dict(doc)
     doc["id"] = str(doc.pop("_id"))
+    doc.pop("password_hash", None)
     for key, value in list(doc.items()):
         if hasattr(value, "binary"):
             doc[key] = str(value)
@@ -79,13 +192,7 @@ def point(lng, lat):
     return {"type": "Point", "coordinates": [float(lng), float(lat)]}
 
 
-
 def send_mail(to_email, subject, body):
-    """Send transactional email with sender name RaniCab.
-
-    In development, if SMTP credentials are not configured, the message is logged
-    and the API still succeeds so local auth flows remain testable.
-    """
     sender_email = os.getenv("SENDER_EMAIL") or os.getenv("sender_email")
     sender_password = os.getenv("SENDER_APP_PASSWORD") or os.getenv("sender_app_password")
     smtp_host = os.getenv("SMTP_HOST", "smtp.gmail.com")
@@ -93,16 +200,20 @@ def send_mail(to_email, subject, body):
     if not sender_email or not sender_password or sender_email.startswith("replace-with"):
         app.logger.warning("Email not sent; SMTP credentials are not configured. To=%s Subject=%s Body=%s", to_email, subject, body)
         return False
-    msg = EmailMessage()
-    msg["From"] = f"RaniCab <{sender_email}>"
-    msg["To"] = to_email
-    msg["Subject"] = subject
-    msg.set_content(body)
-    with smtplib.SMTP(smtp_host, smtp_port, timeout=15) as smtp:
-        smtp.starttls()
-        smtp.login(sender_email, sender_password)
-        smtp.send_message(msg)
-    return True
+    try:
+        msg = EmailMessage()
+        msg["From"] = f"RaniCab <{sender_email}>"
+        msg["To"] = to_email
+        msg["Subject"] = subject
+        msg.set_content(body)
+        with smtplib.SMTP(smtp_host, smtp_port, timeout=10) as smtp:
+            smtp.starttls()
+            smtp.login(sender_email, sender_password)
+            smtp.send_message(msg)
+        return True
+    except Exception as exc:
+        app.logger.warning("SMTP failed: %s", exc)
+        return False
 
 
 def create_or_update_google_user(profile, phone=""):
@@ -120,9 +231,13 @@ def create_or_update_google_user(profile, phone=""):
     user["_id"] = result.inserted_id
     return user
 
+
 def current_user():
     user_id = session.get("user_id")
-    return users.find_one({"_id": oid(user_id)}) if user_id else None
+    if not user_id:
+        return None
+    user = users.find_one({"_id": oid(user_id)})
+    return user
 
 
 def require_role(*roles):
@@ -152,39 +267,101 @@ def health():
     return {"status": "ok", "service": "rani-cab"}
 
 
+@app.get("/api/config")
+def public_config():
+    return {
+        "brand": "Rani Cab",
+        "google_client_id": os.getenv("GOOGLE_CLIENT_ID", "")
+    }
+
+
+@app.get("/api/auth/me")
+def auth_me():
+    user = current_user()
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    user_data = serialize(user)
+    if user.get("role") == "driver":
+        driver_doc = drivers.find_one({"user_id": user["_id"]})
+        if driver_doc:
+            user_data["driver_profile"] = serialize(driver_doc)
+            user_data["is_online"] = driver_doc.get("is_online", False)
+    return {"user": user_data}
+
+
+@app.post("/api/auth/logout")
+def logout():
+    session.clear()
+    return {"message": "Logged out"}
+
+
 @app.post("/api/auth/register")
 def register_rider():
-    data = request.get_json(force=True)
+    data = request.get_json(force=True) or {}
     if data.get("role", "rider") != "rider":
         return jsonify({"error": "Drivers must be registered by admin"}), 403
-    email = data["email"].lower()
+    name = data.get("name", "").strip()
+    username = data.get("username", name).strip().lower()
+    email = data.get("email", "").strip().lower()
+    password = data.get("password", "")
+    if len(name) < 2 or len(username) < 2 or "@" not in email or len(password) < 6:
+        return jsonify({"error": "Enter a valid name, username, email, and password of at least 6 characters"}), 400
     if users.find_one({"email": email}):
         return jsonify({"error": "An account with this email already exists"}), 409
     user = {
-        "name": data["name"], "username": data.get("username", data["name"]), "email": email, "phone": data.get("phone", ""),
-        "password_hash": generate_password_hash(data["password"]), "role": "rider", "rating": 5.0,
-        "provider": "manual", "created_at": now(),
+        "name": name,
+        "username": username,
+        "email": email,
+        "phone": data.get("phone", "").strip(),
+        "password_hash": generate_password_hash(password),
+        "role": "rider",
+        "rating": 5.0,
+        "provider": "manual",
+        "created_at": now(),
     }
-    result = users.insert_one(user)
+    try:
+        result = users.insert_one(user)
+    except DuplicateKeyError:
+        return jsonify({"error": "That username is already taken"}), 409
     user["_id"] = result.inserted_id
     session["user_id"] = str(result.inserted_id)
+    try:
+        send_mail(email, "Welcome to RaniCab", f"Hi {name},\n\nYour RaniCab account is ready. You can now log in and book rides across Tamil Nadu.\n\nRaniCab")
+    except Exception as exc:
+        app.logger.warning("Welcome email could not be sent: %s", exc)
     return jsonify({"user": serialize(user)}), 201
 
 
 @app.post("/api/auth/login")
 def login():
-    data = request.get_json(force=True)
-    login_id = data.get("email") or data.get("username", "")
-    user = users.find_one({"$or": [{"email": login_id.lower()}, {"username": login_id}]})
-    if not user or not check_password_hash(user.get("password_hash", ""), data.get("password", "")):
+    data = request.get_json(force=True) or {}
+    login_id = (data.get("email") or data.get("username") or "").strip()
+    if not login_id:
+        return jsonify({"error": "Please provide an email or Driver ID / username"}), 400
+    user = users.find_one({
+        "$or": [
+            {"email": login_id.lower()},
+            {"username": login_id.lower()},
+            {"username": login_id}
+        ]
+    })
+    requested_role = data.get("role")
+    if (not user or (requested_role and user.get("role") != requested_role)
+            or not check_password_hash(user.get("password_hash", ""), data.get("password", ""))):
         return jsonify({"error": "Invalid credentials"}), 401
     session["user_id"] = str(user["_id"])
-    return {"user": serialize(user)}
+    user_data = serialize(user)
+    if user.get("role") == "driver":
+        driver_doc = drivers.find_one({"user_id": user["_id"]})
+        if driver_doc:
+            user_data["driver_profile"] = serialize(driver_doc)
+            user_data["is_online"] = driver_doc.get("is_online", False)
+    return {"user": user_data}
 
 
 @app.post("/api/auth/google")
 def google_auth():
-    data = request.get_json(force=True)
+    data = request.get_json(force=True) or {}
     token = data.get("credential")
     if not token:
         return jsonify({"error": "Missing Google credential"}), 400
@@ -204,7 +381,7 @@ def google_auth():
 
 @app.post("/api/auth/forgot-password/request")
 def forgot_password_request():
-    data = request.get_json(force=True)
+    data = request.get_json(force=True) or {}
     email = data.get("email", "").lower().strip()
     user = users.find_one({"email": email, "provider": {"$ne": "google"}, "password_hash": {"$exists": True}})
     if not user:
@@ -218,7 +395,7 @@ def forgot_password_request():
 
 @app.post("/api/auth/forgot-password/verify")
 def forgot_password_verify():
-    data = request.get_json(force=True)
+    data = request.get_json(force=True) or {}
     email = data.get("email", "").lower().strip()
     otp_doc = password_otps.find_one({"email": email})
     new_password = data.get("password", "")
@@ -234,34 +411,76 @@ def forgot_password_verify():
         return jsonify({"error": "Password must be at least 6 characters"}), 400
     users.update_one({"email": email, "provider": {"$ne": "google"}}, {"$set": {"password_hash": generate_password_hash(new_password), "updated_at": now()}})
     password_otps.delete_many({"email": email})
-    return {"message": "Password updated"}
+    return {"message": "Password updated successfully"}
 
 
-@app.get("/api/config")
-def public_config():
-    return {"google_client_id": os.getenv("GOOGLE_CLIENT_ID", "")}
+# ============ ADMIN ENDPOINTS ============
+
+@app.get("/api/admin/me")
+def admin_me():
+    if session.get("admin"):
+        return {"admin": True, "username": os.getenv("ADMIN_USERNAME", "admin")}
+    return jsonify({"error": "Admin authentication required"}), 401
 
 
 @app.post("/api/admin/login")
 def admin_login():
-    data = request.get_json(force=True)
-    if data.get("username") == os.getenv("ADMIN_USERNAME") and data.get("password") == os.getenv("ADMIN_PASSWORD"):
+    data = request.get_json(force=True) or {}
+    if data.get("username") == os.getenv("ADMIN_USERNAME", "admin") and data.get("password") == os.getenv("ADMIN_PASSWORD", "Admin@123"):
         session["admin"] = True
-        return {"admin": True}
+        return {"admin": True, "message": "Admin logged in successfully"}
     return jsonify({"error": "Invalid admin credentials"}), 401
+
+
+@app.post("/api/admin/logout")
+def admin_logout():
+    session.pop("admin", None)
+    return {"message": "Admin logged out"}
 
 
 @app.post("/api/admin/drivers")
 @admin_required
 def create_driver():
-    data = request.get_json(force=True)
+    data = request.get_json(force=True) or {}
+    name = data.get("name", "").strip()
+    if not name:
+        return jsonify({"error": "Driver name is required"}), 400
     username = f"driver{secrets.randbelow(900000) + 100000}"
-    password = secrets.token_urlsafe(9)
-    user = {"name": data["name"], "username": username, "email": data.get("email", f"{username}@rani-cab.local"), "phone": data.get("phone", ""), "password_hash": generate_password_hash(password), "role": "driver", "rating": 5.0, "created_at": now()}
-    result = users.insert_one(user)
-    driver = {"user_id": result.inserted_id, "vehicle_model": data["vehicle_model"], "license_plate": data["license_plate"], "is_online": False, "current_location": point(data.get("lng", 78.6569), data.get("lat", 11.1271)), "created_at": now()}
+    password = secrets.token_urlsafe(8)
+    email = data.get("email", "").strip().lower() or f"{username}@rani-cab.local"
+    phone = data.get("phone", "").strip()
+    vehicle_model = data.get("vehicle_model", "Sedan").strip()
+    license_plate = data.get("license_plate", f"TN-{secrets.randbelow(90)+10}-AB-{secrets.randbelow(9000)+1000}").strip()
+    
+    loc = resolve_location(data.get("city", "madurai"), data.get("lng"), data.get("lat"))
+    
+    user = {
+        "name": name,
+        "username": username,
+        "email": email,
+        "phone": phone,
+        "password_hash": generate_password_hash(password),
+        "role": "driver",
+        "rating": 5.0,
+        "created_at": now()
+    }
+    try:
+        result = users.insert_one(user)
+    except DuplicateKeyError:
+        return jsonify({"error": "A driver or user with this email, phone, or username already exists"}), 409
+    driver = {
+        "user_id": result.inserted_id,
+        "vehicle_model": vehicle_model,
+        "license_plate": license_plate,
+        "is_online": False,
+        "current_location": loc,
+        "created_at": now()
+    }
     drivers.insert_one(driver)
-    return jsonify({"driver": serialize(driver), "credentials": {"username": username, "email": user["email"], "password": password}}), 201
+    return jsonify({
+        "driver": serialize(driver),
+        "credentials": {"username": username, "email": email, "password": password, "name": name}
+    }), 201
 
 
 @app.get("/api/admin/overview")
@@ -269,67 +488,285 @@ def create_driver():
 def admin_overview():
     today = now().replace(hour=0, minute=0, second=0, microsecond=0)
     month = today.replace(day=1)
+    
     def revenue_since(start=None):
         match = {"status": "completed"}
         if start:
             match["completed_at"] = {"$gte": start}
         agg = list(rides.aggregate([{"$match": match}, {"$group": {"_id": None, "total": {"$sum": "$fare"}}}]))
         return agg[0]["total"] if agg else 0
+    
     roster = []
     for driver in drivers.find():
         user = users.find_one({"_id": driver["user_id"]}) or {}
-        roster.append({**serialize(driver), "name": user.get("name"), "phone": user.get("phone"), "rating": user.get("rating", 5.0)})
-    return {"revenue": {"today": revenue_since(today), "month": revenue_since(month), "all_time": revenue_since()}, "drivers": roster}
+        loc = driver.get("current_location", {}).get("coordinates", [78.1198, 9.9252])
+        roster.append({
+            **serialize(driver),
+            "name": user.get("name", "Driver"),
+            "username": user.get("username", ""),
+            "phone": user.get("phone", ""),
+            "email": user.get("email", ""),
+            "rating": user.get("rating", 5.0),
+            "lng": loc[0] if len(loc) > 0 else 78.1198,
+            "lat": loc[1] if len(loc) > 1 else 9.9252,
+        })
+    
+    recent_rides = [serialize(r) for r in rides.find().sort("created_at", -1).limit(10)]
+    pricing = settings.find_one({"type": "pricing"}) or {}
+    
+    return {
+        "revenue": {
+            "today": revenue_since(today),
+            "month": revenue_since(month),
+            "all_time": revenue_since()
+        },
+        "drivers": roster,
+        "recent_rides": recent_rides,
+        "pricing": serialize(pricing)
+    }
 
+
+@app.route("/api/admin/settings", methods=["GET", "POST"])
+@admin_required
+def admin_settings():
+    if request.method == "POST":
+        data = request.get_json(force=True) or {}
+        update = {
+            "base_fare": float(data.get("base_fare", 80)),
+            "price_per_km": float(data.get("price_per_km", 18)),
+            "surge_multiplier": float(data.get("surge_multiplier", 1.0)),
+            "maintenance_mode": bool(data.get("maintenance_mode", False)),
+            "updated_at": now()
+        }
+        settings.update_one({"type": "pricing"}, {"$set": update}, upsert=True)
+        return {"message": "Settings updated", "settings": update}
+    pricing = settings.find_one({"type": "pricing"}) or {
+        "base_fare": 80, "price_per_km": 18, "surge_multiplier": 1.0, "maintenance_mode": False
+    }
+    return {"settings": serialize(pricing)}
+
+
+# ============ RIDE & DISPATCH ENDPOINTS ============
 
 @app.post("/api/rides/request")
 @require_role("rider")
 def request_ride():
-    data = request.get_json(force=True)
-    pickup = point(data["pickup_lng"], data["pickup_lat"])
-    nearby = list(drivers.find({"is_online": True, "current_location": {"$near": {"$geometry": pickup, "$maxDistance": int(data.get("radius_m", 3000))}}}).limit(10))
-    ride = {"rider_id": request.user["_id"], "driver_id": None, "pickup_location": pickup, "dropoff_location": point(data["dropoff_lng"], data["dropoff_lat"]), "pickup_address": data.get("pickup_address", "Pickup"), "dropoff_address": data.get("dropoff_address", "Destination"), "status": "requested", "fare": float(data.get("estimated_fare", 0)), "created_at": now()}
+    data = request.get_json(force=True) or {}
+    pickup_addr = data.get("pickup_address", "Madurai")
+    dropoff_addr = data.get("dropoff_address", "Chennai")
+    
+    pickup = resolve_location(pickup_addr, data.get("pickup_lng"), data.get("pickup_lat"), default_city="madurai")
+    dropoff = resolve_location(dropoff_addr, data.get("dropoff_lng"), data.get("dropoff_lat"), default_city="chennai")
+    
+    fare = float(data.get("estimated_fare") or data.get("fare") or 0)
+    trip_type = data.get("trip_type", "oneway")
+    
+    ride = {
+        "rider_id": request.user["_id"],
+        "rider_name": request.user.get("name", "Rider"),
+        "rider_phone": data.get("passenger_phone") or request.user.get("phone", ""),
+        "driver_id": None,
+        "pickup_location": pickup,
+        "dropoff_location": dropoff,
+        "pickup_address": pickup_addr,
+        "dropoff_address": dropoff_addr,
+        "trip_type": trip_type,
+        "scheduled_date": data.get("scheduled_date", ""),
+        "scheduled_time": data.get("scheduled_time", ""),
+        "duration_hours": data.get("duration_hours"),
+        "flight_number": data.get("flight_number", ""),
+        "status": "requested",
+        "fare": fare,
+        "created_at": now()
+    }
     result = rides.insert_one(ride)
     ride["_id"] = result.inserted_id
     payload = serialize(ride)
-    for driver in nearby:
-        socketio.emit("ride_request", payload, room=f"driver:{driver['user_id']}")
-    return {"ride": payload, "nearby_drivers": len(nearby)}
+    
+    # Find online drivers
+    nearby_drivers = list(drivers.find({"is_online": True}))
+    
+    # Broadcast to all online drivers and the dedicated drivers channel
+    socketio.emit("ride_request", payload, room="drivers")
+    for d in nearby_drivers:
+        socketio.emit("ride_request", payload, room=f"driver:{d['user_id']}")
+    
+    return {"ride": payload, "nearby_drivers": len(nearby_drivers)}
+
+
+@app.get("/api/rides/available")
+@require_role("driver")
+def available_rides():
+    open_rides = list(rides.find({"status": "requested"}).sort("created_at", -1).limit(10))
+    return {"rides": [serialize(r) for r in open_rides]}
 
 
 @app.post("/api/rides/<ride_id>/accept")
 @require_role("driver")
 def accept_ride(ride_id):
+    ride_oid = oid(ride_id)
+    if not ride_oid:
+        return jsonify({"error": "Invalid ride ID"}), 400
+    
     driver = drivers.find_one({"user_id": request.user["_id"]})
-    rides.update_one({"_id": oid(ride_id), "status": "requested"}, {"$set": {"driver_id": request.user["_id"], "status": "accepted", "accepted_at": now()}})
-    ride = rides.find_one({"_id": oid(ride_id)})
+    if not driver:
+        return jsonify({"error": "Driver profile not found"}), 404
+    
+    result = rides.update_one(
+        {"_id": ride_oid, "status": "requested"},
+        {"$set": {"driver_id": request.user["_id"], "status": "accepted", "accepted_at": now()}}
+    )
+    if result.modified_count == 0:
+        return jsonify({"error": "Ride already accepted or no longer available"}), 409
+    
+    ride = rides.find_one({"_id": ride_oid})
+    payload = serialize(ride)
+    
+    driver_info = {
+        "name": request.user.get("name", "Driver"),
+        "phone": request.user.get("phone", ""),
+        "rating": request.user.get("rating", 5.0),
+        "vehicle_model": driver.get("vehicle_model", "Sedan"),
+        "license_plate": driver.get("license_plate", "TN-01-AB-1234"),
+    }
+    payload["driver"] = driver_info
+    
+    socketio.emit("ride_updated", payload, room=f"rider:{ride['rider_id']}")
+    socketio.emit("ride_updated", payload, room="drivers")
+    
+    return {"ride": payload, "driver": serialize(driver)}
+
+
+@app.post("/api/rides/<ride_id>/start")
+@require_role("driver")
+def start_ride(ride_id):
+    ride_oid = oid(ride_id)
+    if not ride_oid:
+        return jsonify({"error": "Invalid ride ID"}), 400
+    
+    rides.update_one(
+        {"_id": ride_oid, "driver_id": request.user["_id"], "status": "accepted"},
+        {"$set": {"status": "ongoing", "started_at": now()}}
+    )
+    ride = rides.find_one({"_id": ride_oid})
+    if not ride:
+        return jsonify({"error": "Ride not found"}), 404
+    
     payload = serialize(ride)
     socketio.emit("ride_updated", payload, room=f"rider:{ride['rider_id']}")
-    return {"ride": payload, "driver": serialize(driver)}
+    return {"ride": payload}
 
 
 @app.post("/api/rides/<ride_id>/complete")
 @require_role("driver")
 def complete_ride(ride_id):
+    ride_oid = oid(ride_id)
+    if not ride_oid:
+        return jsonify({"error": "Invalid ride ID"}), 400
+    
     data = request.get_json(silent=True) or {}
-    rides.update_one({"_id": oid(ride_id), "driver_id": request.user["_id"]}, {"$set": {"status": "completed", "fare": float(data.get("fare", 0)), "completed_at": now()}})
-    ride = rides.find_one({"_id": oid(ride_id)})
-    socketio.emit("ride_updated", serialize(ride), room=f"rider:{ride['rider_id']}")
-    return {"ride": serialize(ride)}
+    existing_ride = rides.find_one({"_id": ride_oid, "driver_id": request.user["_id"]})
+    if not existing_ride:
+        return jsonify({"error": "Ride not found or not assigned to you"}), 404
+    
+    fare = float(data.get("fare") or existing_ride.get("fare") or 0)
+    rides.update_one(
+        {"_id": ride_oid, "driver_id": request.user["_id"]},
+        {"$set": {"status": "completed", "fare": fare, "completed_at": now()}}
+    )
+    ride = rides.find_one({"_id": ride_oid})
+    payload = serialize(ride)
+    socketio.emit("ride_updated", payload, room=f"rider:{ride['rider_id']}")
+    return {"ride": payload}
+
+
+@app.post("/api/rides/<ride_id>/cancel")
+@require_role("rider", "driver")
+def cancel_ride(ride_id):
+    ride_oid = oid(ride_id)
+    if not ride_oid:
+        return jsonify({"error": "Invalid ride ID"}), 400
+    
+    query = {"_id": ride_oid, "status": {"$in": ["requested", "accepted"]}}
+    if request.user["role"] == "rider":
+        query["rider_id"] = request.user["_id"]
+    else:
+        query["driver_id"] = request.user["_id"]
+        
+    result = rides.update_one(query, {"$set": {"status": "cancelled", "cancelled_at": now()}})
+    if result.modified_count == 0:
+        return jsonify({"error": "Ride cannot be cancelled"}), 400
+        
+    ride = rides.find_one({"_id": ride_oid})
+    payload = serialize(ride)
+    socketio.emit("ride_updated", payload, room=f"rider:{ride['rider_id']}")
+    if ride.get("driver_id"):
+        socketio.emit("ride_updated", payload, room=f"driver:{ride['driver_id']}")
+    socketio.emit("ride_updated", payload, room="drivers")
+    return {"ride": payload}
 
 
 @app.get("/api/rides/active")
 @require_role("rider", "driver")
 def active_ride():
     key = "rider_id" if request.user["role"] == "rider" else "driver_id"
-    return {"ride": serialize(rides.find_one({key: request.user["_id"], "status": {"$in": ACTIVE_STATUSES}}, sort=[("created_at", -1)]))}
+    active = rides.find_one({key: request.user["_id"], "status": {"$in": ACTIVE_STATUSES}}, sort=[("created_at", -1)])
+    if not active:
+        return {"ride": None}
+    
+    payload = serialize(active)
+    if request.user["role"] == "rider" and active.get("driver_id"):
+        driver_user = users.find_one({"_id": active["driver_id"]}) or {}
+        driver_doc = drivers.find_one({"user_id": active["driver_id"]}) or {}
+        payload["driver"] = {
+            "name": driver_user.get("name", "Driver"),
+            "phone": driver_user.get("phone", ""),
+            "rating": driver_user.get("rating", 5.0),
+            "vehicle_model": driver_doc.get("vehicle_model", "Sedan"),
+            "license_plate": driver_doc.get("license_plate", "TN-01-AB-1234"),
+        }
+    elif request.user["role"] == "driver" and active.get("rider_id"):
+        rider_user = users.find_one({"_id": active["rider_id"]}) or {}
+        payload["rider"] = {
+            "name": rider_user.get("name", "Rider"),
+            "phone": active.get("rider_phone") or rider_user.get("phone", ""),
+            "rating": rider_user.get("rating", 5.0),
+        }
+    return {"ride": payload}
 
 
 @app.get("/api/rides/history")
 @require_role("rider", "driver")
 def ride_history():
     key = "rider_id" if request.user["role"] == "rider" else "driver_id"
-    return {"rides": [serialize(r) for r in rides.find({key: request.user["_id"]}).sort("created_at", -1).limit(50)]}
+    history = list(rides.find({key: request.user["_id"]}).sort("created_at", -1).limit(50))
+    results = []
+    for r in history:
+        doc = serialize(r)
+        if request.user["role"] == "rider" and r.get("driver_id"):
+            d_user = users.find_one({"_id": r["driver_id"]}) or {}
+            doc["driver_name"] = d_user.get("name", "Driver")
+        elif request.user["role"] == "driver" and r.get("rider_id"):
+            r_user = users.find_one({"_id": r["rider_id"]}) or {}
+            doc["rider_name"] = r_user.get("name", "Rider")
+        results.append(doc)
+    return {"rides": results}
+
+
+# ============ DRIVER STATUS & PERFORMANCE ============
+
+@app.post("/api/driver/toggle-online")
+@require_role("driver")
+def toggle_driver_online():
+    data = request.get_json(silent=True) or {}
+    driver = drivers.find_one({"user_id": request.user["_id"]})
+    if not driver:
+        return jsonify({"error": "Driver profile not found"}), 404
+    
+    current_status = driver.get("is_online", False)
+    new_status = bool(data.get("is_online", not current_status))
+    drivers.update_one({"user_id": request.user["_id"]}, {"$set": {"is_online": new_status, "updated_at": now()}})
+    return {"is_online": new_status}
 
 
 @app.get("/api/driver/performance")
@@ -337,34 +774,83 @@ def ride_history():
 def driver_performance():
     start = now().replace(hour=0, minute=0, second=0, microsecond=0)
     week = start - timedelta(days=start.weekday())
-    completed = list(rides.find({"driver_id": request.user["_id"], "status": "completed", "completed_at": {"$gte": week}}))
-    today = [r for r in completed if r.get("completed_at", week) >= start]
+    completed = list(rides.find({"driver_id": request.user["_id"], "status": "completed"}))
+    today_rides = []
     by_day = {i: 0 for i in range(7)}
-    for ride in completed:
-        by_day[ride["completed_at"].weekday()] += 1
-    return {"today": {"completed": len(today), "earnings": sum(r.get("fare", 0) for r in today)}, "week": [{"day": i, "rides": by_day[i]} for i in range(7)]}
+    for r in completed:
+        c_at = r.get("completed_at")
+        if c_at:
+            if hasattr(c_at, "tzinfo") and c_at.tzinfo is not None:
+                c_at = c_at.replace(tzinfo=None)
+            if hasattr(c_at, "weekday"):
+                by_day[c_at.weekday()] += 1
+            if c_at >= start:
+                today_rides.append(r)
+    total_earnings = sum(float(r.get("fare", 0)) for r in today_rides)
+    return {
+        "today": {"completed": len(today_rides), "earnings": total_earnings},
+        "week": [{"day": i, "rides": by_day[i]} for i in range(7)]
+    }
 
+
+# ============ SOCKET.IO REAL-TIME DISPATCH ============
 
 @socketio.on("connect")
 def socket_connect():
     user = current_user()
     if user:
-        join_room(f"{user['role']}:{user['_id']}")
-        emit("connected", {"role": user["role"], "user_id": str(user["_id"])})
+        role = user.get("role", "rider")
+        user_id_str = str(user["_id"])
+        join_room(f"{role}:{user_id_str}")
+        if role == "driver":
+            join_room("drivers")
+        emit("connected", {"role": role, "user_id": user_id_str})
 
 
 @socketio.on("driver_location")
-def driver_location(data):
+def driver_location_socket(data):
     user = current_user()
     if not user or user.get("role") != "driver":
         return
-    location = point(data["lng"], data["lat"])
-    redis_client.hset(f"driver_location:{user['_id']}", mapping={"lng": location["coordinates"][0], "lat": location["coordinates"][1], "updated_at": now().isoformat()})
-    drivers.update_one({"user_id": user["_id"]}, {"$set": {"is_online": bool(data.get("is_online", True)), "current_location": location, "location_updated_at": now()}})
+    try:
+        lng = float(data["lng"])
+        lat = float(data["lat"])
+    except (KeyError, ValueError, TypeError):
+        return
+    
+    loc = point(lng, lat)
+    is_online = bool(data.get("is_online", True))
+    cache_set_driver_location(user["_id"], lng, lat)
+    drivers.update_one(
+        {"user_id": user["_id"]},
+        {"$set": {"is_online": is_online, "current_location": loc, "location_updated_at": now()}}
+    )
     active = rides.find_one({"driver_id": user["_id"], "status": {"$in": ["accepted", "ongoing"]}})
     if active:
-        socketio.emit("driver_location", {"ride_id": str(active["_id"]), "location": location}, room=f"rider:{active['rider_id']}")
+        socketio.emit(
+            "driver_location",
+            {"ride_id": str(active["_id"]), "location": loc, "lat": lat, "lng": lng},
+            room=f"rider:{active['rider_id']}"
+        )
+
+
+# ============ STATIC ASSETS & FRONTEND PAGES ============
+
+@app.route("/")
+def serve_root():
+    return send_from_directory(FRONTEND_DIR, "index.html")
+
+
+@app.route("/frontend/<path:filename>")
+def serve_frontend_page(filename):
+    return send_from_directory(FRONTEND_DIR, filename)
+
+
+@app.route("/src/<path:filename>")
+def serve_src_assets(filename):
+    return send_from_directory(ASSETS_DIR, filename)
 
 
 if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=int(os.getenv("PORT", 5000)))
+
