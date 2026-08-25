@@ -1,3 +1,242 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Rani Cab — Admin Dashboard</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet"><style>
-:root{--ink:#1B1B1F;--ink-soft:#54555C;--paper:#FAF6EE;--paper-raised:#FFFFFF;--marigold:#E8A33D;--marigold-dark:#C9832A;--green:#1E7A4C;--green-dark:#155C39;--red:#C0392B;--border:#E3DCCB;--radius-md:14px;--radius-lg:22px;--shadow:rgba(27,27,31,.10)}*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Work Sans',sans-serif;background:var(--paper);color:var(--ink);line-height:1.5}.container{max-width:1180px;margin:0 auto;padding:24px}.eyebrow{font:600 12px 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--marigold-dark)}h1,h2,h3{font-family:'Oswald',sans-serif;line-height:1.1}.nav,.card{background:var(--paper-raised);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:0 14px 32px var(--shadow)}.nav{display:flex;justify-content:space-between;align-items:center;padding:18px 22px;margin-bottom:24px}.grid{display:grid;grid-template-columns:1.15fr .85fr;gap:22px}.card{padding:22px}.map{min-height:430px;border-radius:var(--radius-lg);background:linear-gradient(135deg,#efe6d3,#fff 45%,#f7dba9);position:relative;overflow:hidden}.map:before{content:'';position:absolute;inset:35px;background:repeating-linear-gradient(90deg,transparent 0 58px,rgba(27,27,31,.08) 59px 62px),repeating-linear-gradient(0deg,transparent 0 58px,rgba(27,27,31,.08) 59px 62px)}.pin,.car{position:absolute;z-index:1;padding:10px 12px;border-radius:999px;background:var(--ink);color:#fff;font-weight:700}.car{left:55%;top:43%;background:var(--green)}.pin{left:30%;top:62%}.btn{display:inline-flex;padding:14px 26px;border-radius:999px;font-weight:700;border:0;background:var(--marigold);box-shadow:0 6px 0 var(--marigold-dark)}.badge{display:inline-flex;padding:7px 12px;border-radius:999px;background:#FBE7C6;color:var(--marigold-dark);font-weight:700}.list{display:grid;gap:12px;margin-top:14px}.row{display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)}.metric{font-size:30px;font-weight:800}.chart{display:flex;align-items:end;gap:10px;height:160px;margin-top:18px}.bar{flex:1;background:var(--marigold);border-radius:10px 10px 0 0;min-height:28px}.muted{color:var(--ink-soft)}@media(max-width:850px){.grid{grid-template-columns:1fr}.nav{align-items:flex-start;gap:12px;flex-direction:column}}
-</style></head><body><main class="container"><section class="nav"><div><span class="eyebrow">Secure Admin</span><h1>Business control panel</h1></div><button class="btn">Register Driver</button></section><section class="card"><span class="eyebrow">Overall Revenue</span><div class="grid" style="margin-top:16px"><div class="list"><div class="row"><span>Total Revenue Today</span><strong>₹ 41,500</strong></div><div class="row"><span>Total Revenue This Month</span><strong>₹ 8,72,000</strong></div><div class="row"><span>All-Time Earnings</span><strong>₹ 48,20,000</strong></div></div><div class="chart"><span class="bar" style="height:42%"></span><span class="bar" style="height:58%"></span><span class="bar" style="height:50%"></span><span class="bar" style="height:76%"></span><span class="bar" style="height:84%"></span><span class="bar" style="height:70%"></span><span class="bar" style="height:92%"></span></div></div></section><section class="grid" style="margin-top:22px"><div class="card"><h2>Driver Information</h2><div class="list"><div class="row"><strong>Arun Kumar</strong><span class="badge">Online</span></div><div class="row"><span>Toyota Etios · TN-01-AB-1234</span><strong>4.9 ★</strong></div><div class="row"><strong>Meena Ravi</strong><span class="badge">Offline</span></div><div class="row"><span>Swift Dzire · TN-02-CD-4567</span><strong>4.8 ★</strong></div></div></div><div class="card"><h2>Settings</h2><div class="list"><div class="row"><span>Base fare</span><strong>₹80</strong></div><div class="row"><span>Price / km</span><strong>₹18</strong></div><div class="row"><span>Surge multiplier</span><strong>1.0x</strong></div><div class="row"><span>Maintenance Mode</span><strong>Off</strong></div></div></div></section></main><script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script><script>const socket=window.io&&io();socket&&socket.on('ride_updated',e=>console.log('ride update',e));socket&&socket.on('driver_location',e=>console.log('driver location',e));</script></body></html>
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rani Cab — Admin Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --ink: #1B1B1F;
+            --ink-soft: #54555C;
+            --paper: #FAF6EE;
+            --paper-raised: #FFFFFF;
+            --marigold: #E8A33D;
+            --marigold-dark: #C9832A;
+            --green: #1E7A4C;
+            --green-dark: #155C39;
+            --red: #C0392B;
+            --border: #E3DCCB;
+            --radius-md: 14px;
+            --radius-lg: 22px;
+            --shadow: rgba(27, 27, 31, .10)
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0
+        }
+
+        body {
+            font-family: 'Work Sans', sans-serif;
+            background: var(--paper);
+            color: var(--ink);
+            line-height: 1.5
+        }
+
+        .container {
+            max-width: 1180px;
+            margin: 0 auto;
+            padding: 24px
+        }
+
+        .eyebrow {
+            font: 600 12px 'IBM Plex Mono', monospace;
+            letter-spacing: .14em;
+            text-transform: uppercase;
+            color: var(--marigold-dark)
+        }
+
+        h1,
+        h2,
+        h3 {
+            font-family: 'Oswald', sans-serif;
+            line-height: 1.1
+        }
+
+        .nav,
+        .card {
+            background: var(--paper-raised);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            box-shadow: 0 14px 32px var(--shadow)
+        }
+
+        .nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 18px 22px;
+            margin-bottom: 24px
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1.15fr .85fr;
+            gap: 22px
+        }
+
+        .card {
+            padding: 22px
+        }
+
+        .map {
+            min-height: 430px;
+            border-radius: var(--radius-lg);
+            background: linear-gradient(135deg, #efe6d3, #fff 45%, #f7dba9);
+            position: relative;
+            overflow: hidden
+        }
+
+        .map:before {
+            content: '';
+            position: absolute;
+            inset: 35px;
+            background: repeating-linear-gradient(90deg, transparent 0 58px, rgba(27, 27, 31, .08) 59px 62px), repeating-linear-gradient(0deg, transparent 0 58px, rgba(27, 27, 31, .08) 59px 62px)
+        }
+
+        .pin,
+        .car {
+            position: absolute;
+            z-index: 1;
+            padding: 10px 12px;
+            border-radius: 999px;
+            background: var(--ink);
+            color: #fff;
+            font-weight: 700
+        }
+
+        .car {
+            left: 55%;
+            top: 43%;
+            background: var(--green)
+        }
+
+        .pin {
+            left: 30%;
+            top: 62%
+        }
+
+        .btn {
+            display: inline-flex;
+            padding: 14px 26px;
+            border-radius: 999px;
+            font-weight: 700;
+            border: 0;
+            background: var(--marigold);
+            box-shadow: 0 6px 0 var(--marigold-dark)
+        }
+
+        .badge {
+            display: inline-flex;
+            padding: 7px 12px;
+            border-radius: 999px;
+            background: #FBE7C6;
+            color: var(--marigold-dark);
+            font-weight: 700
+        }
+
+        .list {
+            display: grid;
+            gap: 12px;
+            margin-top: 14px
+        }
+
+        .row {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border)
+        }
+
+        .metric {
+            font-size: 30px;
+            font-weight: 800
+        }
+
+        .chart {
+            display: flex;
+            align-items: end;
+            gap: 10px;
+            height: 160px;
+            margin-top: 18px
+        }
+
+        .bar {
+            flex: 1;
+            background: var(--marigold);
+            border-radius: 10px 10px 0 0;
+            min-height: 28px
+        }
+
+        .muted {
+            color: var(--ink-soft)
+        }
+
+        @media(max-width:850px) {
+            .grid {
+                grid-template-columns: 1fr
+            }
+
+            .nav {
+                align-items: flex-start;
+                gap: 12px;
+                flex-direction: column
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <main class="container">
+        <section class="nav">
+            <div><span class="eyebrow">Secure Admin</span>
+                <h1>Business control panel</h1>
+            </div><button class="btn">Register Driver</button>
+        </section>
+        <section class="card"><span class="eyebrow">Overall Revenue</span>
+            <div class="grid" style="margin-top:16px">
+                <div class="list">
+                    <div class="row"><span>Total Revenue Today</span><strong>₹ 41,500</strong></div>
+                    <div class="row"><span>Total Revenue This Month</span><strong>₹ 8,72,000</strong></div>
+                    <div class="row"><span>All-Time Earnings</span><strong>₹ 48,20,000</strong></div>
+                </div>
+                <div class="chart"><span class="bar" style="height:42%"></span><span class="bar"
+                        style="height:58%"></span><span class="bar" style="height:50%"></span><span class="bar"
+                        style="height:76%"></span><span class="bar" style="height:84%"></span><span class="bar"
+                        style="height:70%"></span><span class="bar" style="height:92%"></span></div>
+            </div>
+        </section>
+        <section class="grid" style="margin-top:22px">
+            <div class="card">
+                <h2>Driver Information</h2>
+                <div class="list">
+                    <div class="row"><strong>Arun Kumar</strong><span class="badge">Online</span></div>
+                    <div class="row"><span>Toyota Etios · TN-01-AB-1234</span><strong>4.9 ★</strong></div>
+                    <div class="row"><strong>Meena Ravi</strong><span class="badge">Offline</span></div>
+                    <div class="row"><span>Swift Dzire · TN-02-CD-4567</span><strong>4.8 ★</strong></div>
+                </div>
+            </div>
+            <div class="card">
+                <h2>Settings</h2>
+                <div class="list">
+                    <div class="row"><span>Base fare</span><strong>₹80</strong></div>
+                    <div class="row"><span>Price / km</span><strong>₹18</strong></div>
+                    <div class="row"><span>Surge multiplier</span><strong>1.0x</strong></div>
+                    <div class="row"><span>Maintenance Mode</span><strong>Off</strong></div>
+                </div>
+            </div>
+        </section>
+    </main>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script>const socket = window.io && io(); socket && socket.on('ride_updated', e => console.log('ride update', e)); socket && socket.on('driver_location', e => console.log('driver location', e));</script>
+</body>
+
+</html>
