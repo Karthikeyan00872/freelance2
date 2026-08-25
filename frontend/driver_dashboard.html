@@ -94,6 +94,14 @@
             overflow: hidden
         }
 
+        .map iframe {
+            border: 0;
+            height: 430px;
+            inset: 0;
+            position: absolute;
+            width: 100%;
+        }
+
         .map:before {
             content: '';
             position: absolute;
@@ -203,7 +211,7 @@
         </section>
         <section class="grid">
             <div class="card">
-                <div class="map" aria-label="Passenger pickup and route map"><span class="pin">Rider Pickup</span><span
+                <div class="map" aria-label="Google map for live route tracking"><iframe loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps?q=Tamil%20Nadu%20route%20map&output=embed" title="RaniCab Google map"></iframe><span class="pin">Pickup</span><span
                         class="car">🚕 You</span></div>
             </div>
             <aside class="card"><span class="badge">Waiting for requests...</span>

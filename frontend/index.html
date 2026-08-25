@@ -1445,6 +1445,7 @@
             border-bottom: 1.5px solid var(--border);
         }
     </style>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 
 <body>
@@ -2152,10 +2153,10 @@
                 <!-- forgot password -->
                 <div class="step-panel" data-loginpanel="forgot">
                     <h2 class="modal-title">Reset your password</h2>
-                    <p class="modal-sub">Enter your email and we'll send a reset link.</p>
+                    <p class="modal-sub">Forgot password works only for riders who signed up with email and password. We'll send a one-time OTP.</p>
                     <div class="field"><label for="fp-email">Email Address</label><input class="input" type="email"
                             id="fp-email" placeholder="you@email.com"></div>
-                    <button class="btn btn-primary btn-block" id="sendResetBtn" type="button">Send Reset Link</button>
+                    <button class="btn btn-primary btn-block" id="sendResetBtn" type="button">Send OTP</button>
                     <p class="form-note"><a href="#" data-back-login>← Back to log in</a></p>
                 </div>
 
@@ -2179,7 +2180,11 @@
                                     stroke-linejoin="round" />
                             </svg></div>
                         <h3>Check your inbox</h3>
-                        <p>If an account matches that email, a reset link is on its way.</p>
+                        <p>Enter the OTP sent from RaniCab and choose a new password.</p>
+                        <div class="field"><label for="fp-otp">OTP</label><input class="input" id="fp-otp" inputmode="numeric" maxlength="6" placeholder="123456"></div>
+                        <div class="field pw-field"><label for="fp-pass">New Password</label><input class="input" type="password" id="fp-pass" minlength="6" placeholder="••••••••"></div>
+                        <p class="error-msg" id="resetError">Enter the OTP and a 6+ character password.</p>
+                        <button class="btn btn-primary btn-block" id="verifyResetBtn" type="button">Reset Password</button>
                         <button class="btn btn-outline btn-block" data-back-login type="button">Back to log in</button>
                     </div>
                 </div>
@@ -2276,6 +2281,48 @@
     <script>
         (function () {
             "use strict";
+
+            var API_BASE = window.RANICAB_API_BASE || "http://localhost:5000";
+            var googleCredential = null;
+            function api(path, options) {
+                return fetch(API_BASE + path, Object.assign({
+                    credentials: "include",
+                    headers: { "Content-Type": "application/json" }
+                }, options || {})).then(function (res) {
+                    return res.json().then(function (body) {
+                        if (!res.ok) throw new Error(body.error || "Request failed");
+                        return body;
+                    });
+                });
+            }
+            function saveSession(user) {
+                localStorage.setItem("ranicab-session", JSON.stringify({ role: user.role, name: user.name, email: user.email }));
+            }
+            function setError(el, message) { el.textContent = message; el.classList.add("show"); }
+            function finishGoogleAuth(phone, signupMode) {
+                if (!googleCredential) { alert("Google credential missing. Please try Continue with Google again."); return; }
+                return api("/api/auth/google", { method: "POST", body: JSON.stringify({ credential: googleCredential, phone: phone || "" }) })
+                    .then(function (data) {
+                        saveSession(data.user);
+                        if (signupMode) { showSignupPanel("success"); return; }
+                        document.getElementById("loginSuccessTitle").textContent = "You're all set!";
+                        document.getElementById("loginSuccessText").textContent = "Your Google account is linked and ready to ride.";
+                        showLoginPanel("success");
+                    })
+                    .catch(function (error) { alert(error.message); });
+            }
+            function startGoogle(signupMode) {
+                api("/api/config").then(function (cfg) {
+                    if (!cfg.google_client_id || !window.google) throw new Error("Google Sign-In is not configured");
+                    window.google.accounts.id.initialize({ client_id: cfg.google_client_id, callback: function (response) {
+                        googleCredential = response.credential;
+                        if (signupMode) finishGoogleAuth("", true); else showLoginPanel("googlephone");
+                    }});
+                    window.google.accounts.id.prompt(function (notification) {
+                        if (notification.isNotDisplayed() || notification.isSkippedMoment()) window.google.accounts.id.renderButton(signupMode ? document.getElementById("googleSignupBtn") : document.getElementById("googleLoginBtn"), { theme: "outline", size: "large", width: 320 });
+                    });
+                }).catch(function (error) { alert(error.message); });
+            }
 
             /* ---------- ROUTING ---------- */
             var routes = ["home", "oneway", "hourly", "airport"];
@@ -2511,12 +2558,19 @@
                 el.addEventListener("click", function (e) { e.preventDefault(); showLoginPanel("creds"); });
             });
             document.getElementById("sendResetBtn").addEventListener("click", function () {
-                var email = document.getElementById("fp-email").value.trim();
-                if (!email || !email.includes("@")) {
-                    document.getElementById("fp-email").focus();
-                    return;
-                }
-                showLoginPanel("resetsent");
+                var email = document.getElementById("fp-email").value.trim().toLowerCase();
+                if (!email || !email.includes("@")) { document.getElementById("fp-email").focus(); return; }
+                api("/api/auth/forgot-password/request", { method: "POST", body: JSON.stringify({ email: email }) })
+                    .then(function () { showLoginPanel("resetsent"); })
+                    .catch(function (err) { alert(err.message); });
+            });
+            document.getElementById("verifyResetBtn").addEventListener("click", function () {
+                var payload = { email: document.getElementById("fp-email").value.trim().toLowerCase(), otp: document.getElementById("fp-otp").value.trim(), password: document.getElementById("fp-pass").value };
+                var err = document.getElementById("resetError");
+                if (payload.otp.length !== 6 || payload.password.length < 6) { err.classList.add("show"); return; }
+                api("/api/auth/forgot-password/verify", { method: "POST", body: JSON.stringify(payload) })
+                    .then(function () { err.classList.remove("show"); showLoginPanel("creds"); alert("Password updated. Please log in."); })
+                    .catch(function (error) { setError(err, error.message); });
             });
 
             /* ---------- RIDER LOGIN SUBMIT ---------- */
@@ -2525,13 +2579,10 @@
                 var email = document.getElementById("ri-email").value.trim();
                 var pass = document.getElementById("ri-pass").value;
                 var err = document.getElementById("riderLoginError");
-                var account = JSON.parse(localStorage.getItem("vandigo-rider") || "null");
-                if (!email.includes("@") || pass.length < 3 || !account || account.email !== email.toLowerCase() || account.password !== pass) { err.classList.add("show"); return; }
-                err.classList.remove("show");
-                localStorage.setItem("vandigo-session", JSON.stringify({ role: "rider", name: account.username, email: account.email }));
-                document.getElementById("loginSuccessTitle").textContent = "Welcome back!";
-                document.getElementById("loginSuccessText").textContent = "Redirecting you to your VandiGo dashboard.";
-                showLoginPanel("success");
+                if (!email.includes("@") || pass.length < 3) { err.classList.add("show"); return; }
+                api("/api/auth/login", { method: "POST", body: JSON.stringify({ email: email.toLowerCase(), password: pass }) })
+                    .then(function (data) { err.classList.remove("show"); saveSession(data.user); document.getElementById("loginSuccessTitle").textContent = "Welcome back!"; document.getElementById("loginSuccessText").textContent = "Redirecting you to your RaniCab dashboard."; showLoginPanel("success"); })
+                    .catch(function (error) { setError(err, error.message); });
             });
 
             /* ---------- DRIVER LOGIN SUBMIT ---------- */
@@ -2541,52 +2592,19 @@
                 var pass = document.getElementById("dr-pass").value;
                 var err = document.getElementById("driverLoginError");
                 if (!id || pass.length < 3) { err.classList.add("show"); return; }
-                err.classList.remove("show");
-                document.getElementById("loginSuccessTitle").textContent = "Welcome back, driver!";
-                document.getElementById("loginSuccessText").textContent = "Redirecting you to your trip dashboard.";
-                showLoginPanel("success");
+                api("/api/auth/login", { method: "POST", body: JSON.stringify({ username: id, password: pass }) })
+                    .then(function (data) { err.classList.remove("show"); saveSession(data.user); document.getElementById("loginSuccessTitle").textContent = "Welcome back, driver!"; document.getElementById("loginSuccessText").textContent = "Redirecting you to your trip dashboard."; showLoginPanel("success"); })
+                    .catch(function (error) { setError(err, error.message); });
             });
 
-            /* ---------- GOOGLE LOGIN (RIDER) -> PHONE STEP ---------- */
-            document.getElementById("googleLoginBtn").addEventListener("click", function () {
-                var self = this;
-                self.disabled = true;
-                var original = self.innerHTML;
-                self.querySelector("svg").insertAdjacentHTML("afterend", "");
-                self.lastChild.textContent = " Connecting to Google…";
-                setTimeout(function () {
-                    self.disabled = false;
-                    self.innerHTML = original;
-                    showLoginPanel("googlephone");
-                }, 700);
-            });
+            /* ---------- GOOGLE LOGIN / SIGNUP ---------- */
+            document.getElementById("googleLoginBtn").addEventListener("click", function () { startGoogle(false); });
             document.getElementById("googlePhoneContinue").addEventListener("click", function () {
                 var phone = document.getElementById("gl-phone").value.trim();
-                if (phone.length < 8) {
-                    document.getElementById("gl-phone").focus();
-                    return;
-                }
-                localStorage.setItem("vandigo-rider", JSON.stringify({ username: "Google rider", email: "google@vandigo.demo", password: "google-account", phone: phone, provider: "google" }));
-                localStorage.setItem("vandigo-session", JSON.stringify({ role: "rider", name: "Google rider", email: "google@vandigo.demo" }));
-                document.getElementById("loginSuccessTitle").textContent = "You're all set!";
-                document.getElementById("loginSuccessText").textContent = "Your Google account is linked and ready to ride.";
-                showLoginPanel("success");
+                if (phone.length < 8) { document.getElementById("gl-phone").focus(); return; }
+                finishGoogleAuth(phone, false);
             });
-
-            /* ---------- GOOGLE SIGNUP ---------- */
-            document.getElementById("googleSignupBtn").addEventListener("click", function () {
-                var self = this;
-                self.disabled = true;
-                var original = self.innerHTML;
-                self.lastChild.textContent = " Connecting to Google…";
-                setTimeout(function () {
-                    self.disabled = false;
-                    self.innerHTML = original;
-                    localStorage.setItem("vandigo-rider", JSON.stringify({ username: "Google rider", email: "google@vandigo.demo", password: "google-account", phone: "", provider: "google" }));
-                    localStorage.setItem("vandigo-session", JSON.stringify({ role: "rider", name: "Google rider", email: "google@vandigo.demo" }));
-                    showSignupPanel("success");
-                }, 700);
-            });
+            document.getElementById("googleSignupBtn").addEventListener("click", function () { startGoogle(true); });
 
             /* ---------- SIGNUP FORM SUBMIT ---------- */
             document.getElementById("signupForm").addEventListener("submit", function (e) {
@@ -2602,9 +2620,9 @@
                     return;
                 }
                 err.classList.remove("show");
-                localStorage.setItem("vandigo-rider", JSON.stringify({ username: username, email: email, password: pass, phone: phone }));
-                localStorage.setItem("vandigo-session", JSON.stringify({ role: "rider", name: username, email: email }));
-                showSignupPanel("success");
+                api("/api/auth/register", { method: "POST", body: JSON.stringify({ name: username, username: username, email: email, phone: phone, password: pass }) })
+                    .then(function (data) { saveSession(data.user); showSignupPanel("success"); })
+                    .catch(function (error) { setError(err, error.message); });
             });
 
         })();
