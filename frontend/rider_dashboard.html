@@ -283,6 +283,11 @@
             var currentActiveRide = null;
             var assignedDriverPhone = "";
 
+            // Default rider coordinates (Madurai center) — used as a fallback until
+            // real geolocation is available or permission is denied.
+            var riderLng = 78.1198;
+            var riderLat = 9.9252;
+
             function api(path, options) {
                 return fetch(apiBase + path, Object.assign({
                     credentials: "include",
@@ -315,6 +320,38 @@
             var cancelRideBtn = document.getElementById('cancelRideBtn');
             var driverCar = document.getElementById('driverCar');
             var mapFrame = document.getElementById('mapFrame');
+
+            // Show the rider's real current location on the map (used whenever
+            // there is no active ride pinning the map to a pickup address).
+            function updateMapToCoords(lat, lng) {
+                if (mapFrame) {
+                    mapFrame.src = "https://www.google.com/maps?q=" + lat + "," + lng + "&output=embed";
+                }
+            }
+
+            function fetchGeoLocation(callback) {
+                if (!navigator.geolocation) {
+                    if (callback) callback(false);
+                    return;
+                }
+                navigator.geolocation.getCurrentPosition(
+                    function (pos) {
+                        riderLat = pos.coords.latitude;
+                        riderLng = pos.coords.longitude;
+                        // Only recenter on the rider's live position if there is no
+                        // active ride currently pinning the map to a pickup address.
+                        if (!currentActiveRide || !currentActiveRide.pickup_address) {
+                            updateMapToCoords(riderLat, riderLng);
+                        }
+                        if (callback) callback(true);
+                    },
+                    function () {
+                        // Geolocation denied or unavailable — keep the Madurai default.
+                        if (callback) callback(false);
+                    },
+                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+                );
+            }
 
             callDriverBtn.addEventListener('click', function () {
                 if (assignedDriverPhone) {
@@ -362,6 +399,10 @@
                     cancelRideBtn.style.display = "none";
                     callDriverBtn.textContent = "Book a Ride";
                     callDriverBtn.onclick = function () { window.location.href = "/#oneway"; };
+                    // No active ride — show the rider's current location instead of
+                    // a stale pickup address or the static Madurai default.
+                    updateMapToCoords(riderLat, riderLng);
+                    fetchGeoLocation();
                     return;
                 }
 
@@ -448,6 +489,9 @@
                     .catch(function () {});
             }
 
+            // Get the rider's real GPS location on page load (falls back to the
+            // Madurai default in updateRideUI if permission is denied).
+            fetchGeoLocation();
             loadActiveRide();
             loadHistory();
 

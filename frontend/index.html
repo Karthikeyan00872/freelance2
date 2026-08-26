@@ -1459,6 +1459,12 @@
 </head>
 
 <body>
+    <!-- Real Google Sign-In buttons, rendered off-screen and forwarded to from
+         the custom "Continue with Google" / "Sign up with Google" buttons.
+         Kept as direct body children (not inside a display:none modal) so
+         Google's SDK always has a real layout box to render into. -->
+    <div id="googleLoginBtnReal" style="position:absolute; left:-9999px; top:-9999px;" aria-hidden="true"></div>
+    <div id="googleSignupBtnReal" style="position:absolute; left:-9999px; top:-9999px;" aria-hidden="true"></div>
 
     <!-- ============ HEADER ============ -->
     <header class="site">
@@ -2059,7 +2065,7 @@
                 </div>
             </div>
             <div class="footer-bottom">
-                <span>© 2026 VandiGo Mobility Pvt Ltd. All rights reserved.</span>
+                <span>© 2026 RaniCab Mobility Pvt Ltd. All rights reserved.</span>
                 <span>Design concept · Madurai, Tamil Nadu</span>
             </div>
         </div>
@@ -2156,7 +2162,7 @@
                             </svg>
                             Continue with Google
                         </button>
-                        <p class="form-note">New to VandiGo? <a href="#" data-switch-signup>Create an account</a></p>
+                        <p class="form-note">New to RaniCab? <a href="#" data-switch-signup>Create an account</a></p>
                     </div>
                 </div>
 
@@ -2288,7 +2294,7 @@
                                     stroke-linejoin="round" />
                             </svg></div>
                         <h3>Account created</h3>
-                        <p>Welcome to VandiGo — your first ride is a tap away.</p>
+                        <p>Welcome to RaniCab — your first ride is a tap away.</p>
                         <button class="btn btn-outline btn-block" data-close-modal type="button">Start Booking</button>
                     </div>
                 </div>
@@ -2393,35 +2399,82 @@
                 }).then(function (data) {
                     saveSession(data.user);
                     closeAllModals();
-                    window.location.href = data.user.role === "driver" ? "/frontend/driver_dashboard.html" : "/frontend/rider_dashboard.html";
+                    if (data.user.role === "driver") {
+                        window.location.href = "/frontend/driver_dashboard.html";
+                    }
                 }).catch(function (error) {
                     alert(error.message);
                 });
             }
 
-            function startGoogle(signupMode) {
+            /* ---------- CROSS-BROWSER GOOGLE SIGN-IN ---------- */
+            // One Tap (google.accounts.id.prompt()) is blocked by default in
+            // Firefox, Safari, Brave, and browsers with third-party cookie
+            // restrictions. Instead, we pre-render Google's real sign-in
+            // buttons into hidden containers on page load, then forward clicks
+            // on our custom "Continue with Google" buttons to them. Google's
+            // rendered button opens a standard popup window, which works
+            // everywhere.
+            var pendingGoogleSignup = false;
+            var googleButtonsReady = false;
+
+            function initGoogleButtons() {
+                if (googleButtonsReady) return;
                 api("/api/config").then(function (cfg) {
-                    if (!cfg.google_client_id || !window.google) throw new Error("Google Sign-In is not configured");
+                    if (!cfg.google_client_id) return; // not configured — nothing to render
+                    if (!window.google || !window.google.accounts || !window.google.accounts.id) {
+                        // accounts.google.com/gsi/client script hasn't finished loading yet
+                        setTimeout(initGoogleButtons, 300);
+                        return;
+                    }
                     window.google.accounts.id.initialize({
                         client_id: cfg.google_client_id,
                         callback: function (response) {
                             googleCredential = response.credential;
-                            if (signupMode) finishGoogleAuth("", true);
+                            if (pendingGoogleSignup) finishGoogleAuth("", true);
                             else showLoginPanel("googlephone");
                         }
                     });
-                    window.google.accounts.id.prompt(function (notification) {
-                        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-                            window.google.accounts.id.renderButton(
-                                signupMode ? document.getElementById("googleSignupBtn") : document.getElementById("googleLoginBtn"),
-                                { theme: "outline", size: "large", width: 320 }
-                            );
-                        }
-                    });
-                }).catch(function (error) {
-                    alert(error.message);
+                    var loginContainer = document.getElementById("googleLoginBtnReal");
+                    var signupContainer = document.getElementById("googleSignupBtnReal");
+                    if (loginContainer) {
+                        window.google.accounts.id.renderButton(loginContainer, { theme: "outline", size: "large", width: 320 });
+                    }
+                    if (signupContainer) {
+                        window.google.accounts.id.renderButton(signupContainer, { theme: "outline", size: "large", width: 320 });
+                    }
+                    googleButtonsReady = true;
+                }).catch(function () {
+                    // /api/config not reachable yet — try again shortly.
+                    setTimeout(initGoogleButtons, 500);
                 });
             }
+
+            // Google's rendered button draws an invisible, clickable overlay
+            // (role="button") over its iframe in the *parent* document, so it
+            // can be triggered programmatically without touching iframe internals.
+            function clickRenderedGoogleButton(containerId) {
+                var container = document.getElementById(containerId);
+                var innerButton = container && container.querySelector('div[role="button"]');
+                if (innerButton) {
+                    innerButton.click();
+                    return true;
+                }
+                return false;
+            }
+
+            function startGoogle(signupMode) {
+                pendingGoogleSignup = !!signupMode;
+                var containerId = signupMode ? "googleSignupBtnReal" : "googleLoginBtnReal";
+                if (!googleButtonsReady || !clickRenderedGoogleButton(containerId)) {
+                    initGoogleButtons();
+                    alert("Google Sign-In is still loading. Please try again in a moment.");
+                }
+            }
+
+            // Pre-render the real buttons as soon as possible so the first
+            // click on our custom button can forward to them immediately.
+            initGoogleButtons();
 
             /* ---------- ROUTING ---------- */
             var routes = ["home", "oneway", "hourly", "airport"];
@@ -2780,7 +2833,6 @@
                             if (err) err.classList.remove("show");
                             saveSession(data.user);
                             closeAllModals();
-                            window.location.href = "/frontend/rider_dashboard.html";
                         })
                         .catch(function (error) { setError(err, error.message); });
                 });
@@ -2845,7 +2897,6 @@
                     }).then(function (data) {
                         saveSession(data.user);
                         closeAllModals();
-                        window.location.href = "/frontend/rider_dashboard.html";
                     }).catch(function (error) {
                         setError(err, error.message);
                     });

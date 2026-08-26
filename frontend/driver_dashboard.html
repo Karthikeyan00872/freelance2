@@ -229,7 +229,7 @@
         <section class="nav">
             <div><span class="eyebrow">Driver Dashboard</span>
                 <h1>Work console</h1>
-            </div><nav class="dashboard-links"><a class="nav-link" href="/#home">Home</a><a class="nav-link" href="/#oneway">Oneway Trip</a><a class="nav-link" href="/#hourly">Hourly Rental</a><a class="nav-link" href="/#airport">Airport Transfer</a><a class="nav-link" href="/frontend/driver_dashboard.html">Driver Dashboard</a></nav><div class="nav-actions"><button class="btn" id="onlineToggle">Go Online</button><button class="btn" id="logoutButton" type="button">Log out</button></div>
+            </div><nav class="dashboard-links"><a class="nav-link" href="/">Home</a><a class="nav-link" href="/frontend/driver_dashboard.html">Driver Dashboard</a></nav><div class="nav-actions"><button class="btn" id="onlineToggle">Go Online</button><button class="btn" id="logoutButton" type="button">Log out</button></div>
         </section>
         <section class="grid">
             <div class="card">
@@ -533,17 +533,65 @@
                 }).catch(function () {});
             }
 
-            // Real-time location broadcast
+            // Real-time location broadcast using actual GPS
+            function updateMapToCoords(lat, lng) {
+                if (mapFrame) {
+                    mapFrame.src = "https://www.google.com/maps?q=" + lat + "," + lng + "&output=embed";
+                }
+            }
+
+            function fetchGeoLocation(callback) {
+                if (!navigator.geolocation) {
+                    if (callback) callback(false);
+                    return;
+                }
+                navigator.geolocation.getCurrentPosition(
+                    function (pos) {
+                        driverLat = pos.coords.latitude;
+                        driverLng = pos.coords.longitude;
+                        updateMapToCoords(driverLat, driverLng);
+                        if (callback) callback(true);
+                    },
+                    function () {
+                        // Geolocation denied or unavailable — keep existing coordinates
+                        if (callback) callback(false);
+                    },
+                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+                );
+            }
+
             function emitLocation() {
                 if (!socket || !isOnline) return;
-                // Slight simulated GPS jitter around base location
-                var jitterLng = driverLng + (Math.random() - 0.5) * 0.004;
-                var jitterLat = driverLat + (Math.random() - 0.5) * 0.004;
-                socket.emit("driver_location", {
-                    lng: jitterLng,
-                    lat: jitterLat,
-                    is_online: isOnline
-                });
+                // Try to get fresh GPS, then emit
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        function (pos) {
+                            driverLat = pos.coords.latitude;
+                            driverLng = pos.coords.longitude;
+                            updateMapToCoords(driverLat, driverLng);
+                            socket.emit("driver_location", {
+                                lng: driverLng,
+                                lat: driverLat,
+                                is_online: isOnline
+                            });
+                        },
+                        function () {
+                            // Fallback: emit stored coordinates
+                            socket.emit("driver_location", {
+                                lng: driverLng,
+                                lat: driverLat,
+                                is_online: isOnline
+                            });
+                        },
+                        { enableHighAccuracy: true, timeout: 5000, maximumAge: 10000 }
+                    );
+                } else {
+                    socket.emit("driver_location", {
+                        lng: driverLng,
+                        lat: driverLat,
+                        is_online: isOnline
+                    });
+                }
             }
 
             function startLocationBroadcast() {
@@ -558,6 +606,9 @@
                     locationInterval = null;
                 }
             }
+
+            // Get real GPS location on page load
+            fetchGeoLocation();
 
             // Initialize driver data
             api('/api/auth/me').then(function (res) {
