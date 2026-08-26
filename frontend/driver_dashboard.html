@@ -5,12 +5,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rani Cab — Driver Dashboard</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
         href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap"
         rel="stylesheet">
     <style>
+        /* Your existing styles remain exactly the same */
         :root {
             --ink: #1B1B1F;
             --ink-soft: #54555C;
@@ -111,46 +114,15 @@
         .map {
             min-height: 430px;
             border-radius: var(--radius-lg);
-            background: linear-gradient(135deg, #efe6d3, #fff 45%, #f7dba9);
+            background: #e8e0d4;
             position: relative;
-            overflow: hidden
+            overflow: hidden;
         }
-
-        .map iframe {
-            border: 0;
+        /* Leaflet will fill the map container */
+        #driverMap {
             height: 430px;
-            inset: 0;
-            position: absolute;
             width: 100%;
-        }
-
-        .map:before {
-            content: '';
-            position: absolute;
-            inset: 35px;
-            background: repeating-linear-gradient(90deg, transparent 0 58px, rgba(27, 27, 31, .08) 59px 62px), repeating-linear-gradient(0deg, transparent 0 58px, rgba(27, 27, 31, .08) 59px 62px)
-        }
-
-        .pin,
-        .car {
-            position: absolute;
-            z-index: 1;
-            padding: 10px 12px;
-            border-radius: 999px;
-            background: var(--ink);
-            color: #fff;
-            font-weight: 700
-        }
-
-        .car {
-            left: 55%;
-            top: 43%;
-            background: var(--green)
-        }
-
-        .pin {
-            left: 30%;
-            top: 62%
+            border-radius: var(--radius-lg);
         }
 
         .btn {
@@ -160,7 +132,8 @@
             font-weight: 700;
             border: 0;
             background: var(--marigold);
-            box-shadow: 0 6px 0 var(--marigold-dark)
+            box-shadow: 0 6px 0 var(--marigold-dark);
+            cursor: pointer;
         }
 
         .badge {
@@ -233,10 +206,8 @@
         </section>
         <section class="grid">
             <div class="card">
-                <div class="map" aria-label="Google map for live route tracking">
-                    <iframe id="driverMapFrame" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps?q=Madurai%2C%20Tamil%20Nadu&output=embed" title="RaniCab Google map"></iframe>
-                    <span class="pin" id="tripPin">Pickup</span>
-                    <span class="car" id="driverMarker">🚕 You</span>
+                <div class="map" aria-label="Live map for route tracking">
+                    <div id="driverMap"></div>
                 </div>
             </div>
             <aside class="card">
@@ -280,6 +251,8 @@
             </div>
         </section>
     </main>
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script>
         (function () {
@@ -301,9 +274,60 @@
             var assignedRiderPhone = "";
             var locationInterval = null;
 
-            // Default driver coordinates (Madurai center)
             var driverLng = 78.1198;
             var driverLat = 9.9252;
+
+            // --- LEALET MAP INIT ---
+            var map = L.map('driverMap').setView([driverLat, driverLng], 14);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+
+            // Driver marker (own car)
+            var driverMarker = L.marker([driverLat, driverLng], { icon: L.divIcon({ html: '🚕', className: 'custom-marker', iconSize: [30, 30] }) })
+                .addTo(map)
+                .bindPopup('You');
+
+            // Pickup and dropoff markers (initially hidden)
+            var pickupMarker = L.marker([0, 0], { icon: L.divIcon({ html: '📍', className: 'custom-marker', iconSize: [24, 24] }) })
+                .addTo(map)
+                .setOpacity(0);
+            var dropoffMarker = L.marker([0, 0], { icon: L.divIcon({ html: '🏁', className: 'custom-marker', iconSize: [24, 24] }) })
+                .addTo(map)
+                .setOpacity(0);
+
+            function updateDriverMarker(lat, lng) {
+                driverMarker.setLatLng([lat, lng]);
+                // Also pan to driver if no active ride or if we want to follow
+                if (!currentRide || currentRide.status === 'requested') {
+                    map.panTo([lat, lng], { animate: true });
+                }
+            }
+
+            function updateRideMarkers(ride) {
+                if (ride && ride.pickup_location && ride.pickup_location.coordinates) {
+                    var coords = ride.pickup_location.coordinates;
+                    pickupMarker.setLatLng([coords[1], coords[0]]).setOpacity(1);
+                    // Optionally add a popup
+                    pickupMarker.bindPopup('Pickup: ' + (ride.pickup_address || ''));
+                } else {
+                    pickupMarker.setOpacity(0);
+                }
+                if (ride && ride.dropoff_location && ride.dropoff_location.coordinates) {
+                    var coords = ride.dropoff_location.coordinates;
+                    dropoffMarker.setLatLng([coords[1], coords[0]]).setOpacity(1);
+                    dropoffMarker.bindPopup('Dropoff: ' + (ride.dropoff_address || ''));
+                } else {
+                    dropoffMarker.setOpacity(0);
+                }
+                // If there is a ride, fit map to show all markers (pickup, dropoff, driver)
+                if (ride && ride.pickup_location && ride.dropoff_location) {
+                    var group = L.featureGroup([driverMarker, pickupMarker, dropoffMarker]);
+                    map.fitBounds(group.getBounds(), { padding: [50, 50] });
+                }
+            }
+
+            // --- END MAP INIT ---
 
             function api(path, options) {
                 return fetch(apiBase + path, Object.assign({
@@ -339,7 +363,6 @@
             var callRiderBtn = document.getElementById('callRiderBtn');
             var metricText = document.getElementById('metricText');
             var metricEarnings = document.getElementById('metricEarnings');
-            var mapFrame = document.getElementById('driverMapFrame');
 
             function updateOnlineUI(status) {
                 isOnline = !!status;
@@ -449,6 +472,13 @@
                 startRideBtn.style.display = "none";
                 completeRideBtn.style.display = "none";
 
+                // Update markers
+                if (ride) {
+                    updateRideMarkers(ride);
+                } else {
+                    updateRideMarkers(null);
+                }
+
                 if (!ride) {
                     pickupEl.textContent = isOnline ? "Listening nearby..." : "Offline";
                     dropoffEl.textContent = isOnline ? "Waiting for request" : "—";
@@ -470,10 +500,6 @@
                 riderNameEl.textContent = (ride.rider && ride.rider.name) || ride.rider_name || "Rider";
                 riderRatingEl.textContent = ((ride.rider && ride.rider.rating) || 5.0) + " ★";
                 assignedRiderPhone = (ride.rider && ride.rider.phone) || ride.rider_phone || "";
-
-                if (ride.pickup_address && mapFrame) {
-                    mapFrame.src = "https://www.google.com/maps?q=" + encodeURIComponent(ride.pickup_address + ", Tamil Nadu") + "&output=embed";
-                }
 
                 if (ride.status === "requested") {
                     badgeEl.textContent = "New Ride Request!";
@@ -534,12 +560,6 @@
             }
 
             // Real-time location broadcast using actual GPS
-            function updateMapToCoords(lat, lng) {
-                if (mapFrame) {
-                    mapFrame.src = "https://www.google.com/maps?q=" + lat + "," + lng + "&output=embed";
-                }
-            }
-
             function fetchGeoLocation(callback) {
                 if (!navigator.geolocation) {
                     if (callback) callback(false);
@@ -549,11 +569,10 @@
                     function (pos) {
                         driverLat = pos.coords.latitude;
                         driverLng = pos.coords.longitude;
-                        updateMapToCoords(driverLat, driverLng);
+                        updateDriverMarker(driverLat, driverLng);
                         if (callback) callback(true);
                     },
                     function () {
-                        // Geolocation denied or unavailable — keep existing coordinates
                         if (callback) callback(false);
                     },
                     { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
@@ -562,13 +581,12 @@
 
             function emitLocation() {
                 if (!socket || !isOnline) return;
-                // Try to get fresh GPS, then emit
                 if (navigator.geolocation) {
                     navigator.geolocation.getCurrentPosition(
                         function (pos) {
                             driverLat = pos.coords.latitude;
                             driverLng = pos.coords.longitude;
-                            updateMapToCoords(driverLat, driverLng);
+                            updateDriverMarker(driverLat, driverLng);
                             socket.emit("driver_location", {
                                 lng: driverLng,
                                 lat: driverLat,
@@ -576,7 +594,6 @@
                             });
                         },
                         function () {
-                            // Fallback: emit stored coordinates
                             socket.emit("driver_location", {
                                 lng: driverLng,
                                 lat: driverLat,
@@ -607,7 +624,7 @@
                 }
             }
 
-            // Get real GPS location on page load
+            // Get initial location
             fetchGeoLocation();
 
             // Initialize driver data
@@ -618,6 +635,7 @@
                         if (res.user.driver_profile.current_location && res.user.driver_profile.current_location.coordinates) {
                             driverLng = res.user.driver_profile.current_location.coordinates[0];
                             driverLat = res.user.driver_profile.current_location.coordinates[1];
+                            updateDriverMarker(driverLat, driverLng);
                         }
                     }
                 }

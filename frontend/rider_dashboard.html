@@ -5,12 +5,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rani Cab — Rider Dashboard</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
         href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap"
         rel="stylesheet">
     <style>
+        /* Your existing styles remain exactly the same */
         :root {
             --ink: #1B1B1F;
             --ink-soft: #54555C;
@@ -111,46 +114,14 @@
         .map {
             min-height: 430px;
             border-radius: var(--radius-lg);
-            background: linear-gradient(135deg, #efe6d3, #fff 45%, #f7dba9);
+            background: #e8e0d4;
             position: relative;
-            overflow: hidden
+            overflow: hidden;
         }
-
-        .map iframe {
-            border: 0;
+        #riderMap {
             height: 430px;
-            inset: 0;
-            position: absolute;
             width: 100%;
-        }
-
-        .map:before {
-            content: '';
-            position: absolute;
-            inset: 35px;
-            background: repeating-linear-gradient(90deg, transparent 0 58px, rgba(27, 27, 31, .08) 59px 62px), repeating-linear-gradient(0deg, transparent 0 58px, rgba(27, 27, 31, .08) 59px 62px)
-        }
-
-        .pin,
-        .car {
-            position: absolute;
-            z-index: 1;
-            padding: 10px 12px;
-            border-radius: 999px;
-            background: var(--ink);
-            color: #fff;
-            font-weight: 700
-        }
-
-        .car {
-            left: 55%;
-            top: 43%;
-            background: var(--green)
-        }
-
-        .pin {
-            left: 30%;
-            top: 62%
+            border-radius: var(--radius-lg);
         }
 
         .btn {
@@ -160,7 +131,8 @@
             font-weight: 700;
             border: 0;
             background: var(--marigold);
-            box-shadow: 0 6px 0 var(--marigold-dark)
+            box-shadow: 0 6px 0 var(--marigold-dark);
+            cursor: pointer;
         }
 
         .badge {
@@ -233,9 +205,8 @@
         </section>
         <section class="grid">
             <div class="card">
-                <div class="map" id="mapContainer" aria-label="Google map for live route tracking">
-                    <iframe id="mapFrame" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps?q=Madurai%2C%20Tamil%20Nadu&output=embed" title="RaniCab Google map"></iframe>
-                    
+                <div class="map" id="mapContainer" aria-label="Live map for route tracking">
+                    <div id="riderMap"></div>
                 </div>
             </div>
             <aside class="card">
@@ -263,6 +234,8 @@
             <div id="historyList" class="list"></div>
         </section>
     </main>
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script>
         (function () {
@@ -282,10 +255,76 @@
             var currentActiveRide = null;
             var assignedDriverPhone = "";
 
-            // Default rider coordinates (Madurai center) — used as a fallback until
-            // real geolocation is available or permission is denied.
             var riderLng = 78.1198;
             var riderLat = 9.9252;
+
+            // --- LEALET MAP INIT ---
+            var map = L.map('riderMap').setView([riderLat, riderLng], 14);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+
+            // Rider marker (own position)
+            var riderMarker = L.marker([riderLat, riderLng], { icon: L.divIcon({ html: '🧑', className: 'custom-marker', iconSize: [30, 30] }) })
+                .addTo(map)
+                .bindPopup('You');
+
+            // Driver marker (initially hidden)
+            var driverMarker = L.marker([0, 0], { icon: L.divIcon({ html: '🚕', className: 'custom-marker', iconSize: [30, 30] }) })
+                .addTo(map)
+                .setOpacity(0);
+
+            // Pickup and dropoff markers (hidden initially)
+            var pickupMarker = L.marker([0, 0], { icon: L.divIcon({ html: '📍', className: 'custom-marker', iconSize: [24, 24] }) })
+                .addTo(map)
+                .setOpacity(0);
+            var dropoffMarker = L.marker([0, 0], { icon: L.divIcon({ html: '🏁', className: 'custom-marker', iconSize: [24, 24] }) })
+                .addTo(map)
+                .setOpacity(0);
+
+            function updateRiderMarker(lat, lng) {
+                riderMarker.setLatLng([lat, lng]);
+                // Pan map to rider if no active ride
+                if (!currentActiveRide) {
+                    map.panTo([lat, lng], { animate: true });
+                }
+            }
+
+            function updateDriverMarker(lat, lng) {
+                driverMarker.setLatLng([lat, lng]).setOpacity(1);
+                // If there is an active ride, fit bounds to show rider and driver
+                if (currentActiveRide) {
+                    var group = L.featureGroup([riderMarker, driverMarker, pickupMarker, dropoffMarker]);
+                    map.fitBounds(group.getBounds(), { padding: [50, 50] });
+                } else {
+                    // Just show driver marker without moving map too much
+                }
+            }
+
+            function updateRideMarkers(ride) {
+                if (ride && ride.pickup_location && ride.pickup_location.coordinates) {
+                    var coords = ride.pickup_location.coordinates;
+                    pickupMarker.setLatLng([coords[1], coords[0]]).setOpacity(1);
+                    pickupMarker.bindPopup('Pickup: ' + (ride.pickup_address || ''));
+                } else {
+                    pickupMarker.setOpacity(0);
+                }
+                if (ride && ride.dropoff_location && ride.dropoff_location.coordinates) {
+                    var coords = ride.dropoff_location.coordinates;
+                    dropoffMarker.setLatLng([coords[1], coords[0]]).setOpacity(1);
+                    dropoffMarker.bindPopup('Dropoff: ' + (ride.dropoff_address || ''));
+                } else {
+                    dropoffMarker.setOpacity(0);
+                }
+                // Fit bounds if ride has pickup and dropoff
+                if (ride && ride.pickup_location && ride.dropoff_location) {
+                    var group = L.featureGroup([riderMarker, pickupMarker, dropoffMarker]);
+                    if (driverMarker.getOpacity() > 0) group.addLayer(driverMarker);
+                    map.fitBounds(group.getBounds(), { padding: [50, 50] });
+                }
+            }
+
+            // --- END MAP INIT ---
 
             function api(path, options) {
                 return fetch(apiBase + path, Object.assign({
@@ -317,40 +356,6 @@
             var driverRatingEl = document.getElementById('driverRating');
             var callDriverBtn = document.getElementById('callDriverBtn');
             var cancelRideBtn = document.getElementById('cancelRideBtn');
-            var driverCar = document.getElementById('driverCar');
-            var mapFrame = document.getElementById('mapFrame');
-
-            // Show the rider's real current location on the map (used whenever
-            // there is no active ride pinning the map to a pickup address).
-            function updateMapToCoords(lat, lng) {
-                if (mapFrame) {
-                    mapFrame.src = "https://www.google.com/maps?q=" + lat + "," + lng + "&output=embed";
-                }
-            }
-
-            function fetchGeoLocation(callback) {
-                if (!navigator.geolocation) {
-                    if (callback) callback(false);
-                    return;
-                }
-                navigator.geolocation.getCurrentPosition(
-                    function (pos) {
-                        riderLat = pos.coords.latitude;
-                        riderLng = pos.coords.longitude;
-                        // Only recenter on the rider's live position if there is no
-                        // active ride currently pinning the map to a pickup address.
-                        if (!currentActiveRide || !currentActiveRide.pickup_address) {
-                            updateMapToCoords(riderLat, riderLng);
-                        }
-                        if (callback) callback(true);
-                    },
-                    function () {
-                        // Geolocation denied or unavailable — keep the Madurai default.
-                        if (callback) callback(false);
-                    },
-                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
-                );
-            }
 
             callDriverBtn.addEventListener('click', function () {
                 if (assignedDriverPhone) {
@@ -398,10 +403,12 @@
                     cancelRideBtn.style.display = "none";
                     callDriverBtn.textContent = "Book a Ride";
                     callDriverBtn.onclick = function () { window.location.href = "/#oneway"; };
-                    // No active ride — show the rider's current location instead of
-                    // a stale pickup address or the static Madurai default.
-                    updateMapToCoords(riderLat, riderLng);
-                    fetchGeoLocation();
+                    // Hide driver marker
+                    driverMarker.setOpacity(0);
+                    // Show rider location
+                    updateRiderMarker(riderLat, riderLng);
+                    // Clear ride markers
+                    updateRideMarkers(null);
                     return;
                 }
 
@@ -416,9 +423,8 @@
                 dropoffEl.textContent = ride.dropoff_address || "Destination";
                 fareEl.textContent = ride.fare ? "₹" + Number(ride.fare).toLocaleString("en-IN") : "Calculating";
 
-                if (ride.pickup_address && mapFrame) {
-                    mapFrame.src = "https://www.google.com/maps?q=" + encodeURIComponent(ride.pickup_address + ", Tamil Nadu") + "&output=embed";
-                }
+                // Update ride markers
+                updateRideMarkers(ride);
 
                 if (ride.status === "requested") {
                     badgeEl.textContent = "Searching for a driver...";
@@ -428,6 +434,7 @@
                     driverVehicleEl.textContent = "Matching best vehicle";
                     driverRatingEl.textContent = "★★★★★";
                     assignedDriverPhone = "";
+                    driverMarker.setOpacity(0);
                 } else if (ride.status === "accepted") {
                     badgeEl.textContent = "Driver accepted & on the way";
                     badgeEl.style.background = "#d4edda";
@@ -488,8 +495,22 @@
                     .catch(function () {});
             }
 
-            // Get the rider's real GPS location on page load (falls back to the
-            // Madurai default in updateRideUI if permission is denied).
+            // Get rider's real location
+            function fetchGeoLocation() {
+                if (!navigator.geolocation) return;
+                navigator.geolocation.getCurrentPosition(
+                    function (pos) {
+                        riderLat = pos.coords.latitude;
+                        riderLng = pos.coords.longitude;
+                        updateRiderMarker(riderLat, riderLng);
+                    },
+                    function () {
+                        // fallback: keep default
+                    },
+                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+                );
+            }
+
             fetchGeoLocation();
             loadActiveRide();
             loadHistory();
@@ -507,14 +528,10 @@
                 });
                 socket.on('driver_location', function (data) {
                     console.log('Driver location update:', data);
-                    if (driverCar && data.location && data.location.coordinates) {
-                        // Animate or shift car marker slightly to indicate live motion
+                    if (data.location && data.location.coordinates) {
                         var lat = data.location.coordinates[1];
                         var lng = data.location.coordinates[0];
-                        var xPercent = 40 + ((lng * 100) % 25);
-                        var yPercent = 40 + ((lat * 100) % 25);
-                        driverCar.style.left = xPercent + "%";
-                        driverCar.style.top = yPercent + "%";
+                        updateDriverMarker(lat, lng);
                     }
                 });
             }
