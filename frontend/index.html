@@ -878,7 +878,7 @@
         /* ============ CAB TYPES ============ */
         .cab-scroll {
             display: flex;
-            gap: 16px;
+            gap: 20px;
             overflow-x: auto;
             align-items: stretch;
             padding: 4px 2px 14px;
@@ -889,7 +889,7 @@
 
         .cab-card {
             width: 190px;
-            min-width: 190px;
+            min-width: 267px;
             background: var(--paper-raised);
             border: 1.5px solid var(--border);
             border-radius: var(--radius-md);
@@ -2180,7 +2180,8 @@
                     <h2 class="modal-title">Reset your password</h2>
                     <p class="modal-sub">Forgot password works only for riders who signed up with email and password. We'll send a one-time OTP.</p>
                     <div class="field"><label for="fp-email">Email Address</label><input class="input" type="email"
-                            id="fp-email" placeholder="you@email.com"></div>
+                            id="fp-email" placeholder="you@email.com" autocomplete="email"></div>
+                        <p class="error-msg" id="forgotError">Enter the email address used for your RaniCab account.</p>
                     <button class="btn btn-primary btn-block" id="sendResetBtn" type="button">Send OTP</button>
                     <p class="form-note"><a href="#" data-back-login>← Back to log in</a></p>
                 </div>
@@ -2210,6 +2211,8 @@
                         <div class="field pw-field"><label for="fp-pass">New Password</label><input class="input" type="password" id="fp-pass" minlength="6" placeholder="••••••••"></div>
                         <p class="error-msg" id="resetError">Enter the OTP and a 6+ character password.</p>
                         <button class="btn btn-primary btn-block" id="verifyResetBtn" type="button">Reset Password</button>
+                        <button class="btn btn-ghost btn-block" id="resendResetBtn" type="button">Resend OTP</button>
+                        <p class="error-msg" id="resendError"></p>
                         <button class="btn btn-outline btn-block" data-back-login type="button">Back to log in</button>
                     </div>
                 </div>
@@ -2315,7 +2318,15 @@
                     credentials: "include",
                     headers: { "Content-Type": "application/json" }
                 }, options || {})).then(function (res) {
-                    return res.json().then(function (body) {
+                    return res.text().then(function (raw) {
+                        var body;
+                        try {
+                            body = raw ? JSON.parse(raw) : {};
+                        } catch (parseError) {
+                            throw new Error(res.ok
+                                ? "The server returned an invalid response. Please try again."
+                                : "The reset service is unavailable. Please wait and try again.");
+                        }
                         if (!res.ok) throw new Error(body.error || "Request failed");
                         return body;
                     });
@@ -2787,10 +2798,24 @@
             if (sendResetBtn) {
                 sendResetBtn.addEventListener("click", function () {
                     var email = document.getElementById("fp-email").value.trim().toLowerCase();
-                    if (!email || !email.includes("@")) { document.getElementById("fp-email").focus(); return; }
+                    var err = document.getElementById("forgotError");
+                    if (!email || !email.includes("@")) {
+                        setError(err, "Enter the email address used for your RaniCab account.");
+                        document.getElementById("fp-email").focus();
+                        return;
+                    }
+                    if (err) err.classList.remove("show");
+                    sendResetBtn.disabled = true;
+                    sendResetBtn.textContent = "Sending...";
                     api("/api/auth/forgot-password/request", { method: "POST", body: JSON.stringify({ email: email }) })
                         .then(function () { showLoginPanel("resetsent"); })
-                        .catch(function (err) { alert(err.message); });
+                        .catch(function (error) {
+                            setError(err, error.message);
+                        })
+                        .finally(function () {
+                            sendResetBtn.disabled = false;
+                            sendResetBtn.textContent = "Send OTP";
+                        });
                 });
             }
             var verifyResetBtn = document.getElementById("verifyResetBtn");
@@ -2810,9 +2835,40 @@
                         .then(function () {
                             if (err) err.classList.remove("show");
                             showLoginPanel("creds");
-                            alert("Password updated successfully. Please log in.");
+                            var loginError = document.getElementById("riderLoginError");
+                            if (loginError) {
+                                loginError.textContent = "Password updated successfully. Please log in.";
+                                loginError.classList.add("show");
+                            }
                         })
                         .catch(function (error) { setError(err, error.message); });
+                });
+            }
+            var resendResetBtn = document.getElementById("resendResetBtn");
+            if (resendResetBtn) {
+                resendResetBtn.addEventListener("click", function () {
+                    var email = document.getElementById("fp-email").value.trim().toLowerCase();
+                    var err = document.getElementById("resendError");
+                    if (!email || !email.includes("@")) {
+                        setError(err, "Enter your email address again before resending the OTP.");
+                        return;
+                    }
+                    if (err) err.classList.remove("show");
+                    resendResetBtn.disabled = true;
+                    resendResetBtn.textContent = "Sending...";
+                    api("/api/auth/forgot-password/resend", { method: "POST", body: JSON.stringify({ email: email }) })
+                        .then(function (data) {
+                            if (err) {
+                                err.textContent = data.message || "A new OTP was sent to your email.";
+                                err.classList.add("show");
+                            }
+                            document.getElementById("fp-otp").value = "";
+                        })
+                        .catch(function (error) { setError(err, error.message); })
+                        .finally(function () {
+                            resendResetBtn.disabled = false;
+                            resendResetBtn.textContent = "Resend OTP";
+                        });
                 });
             }
 

@@ -1,6 +1,7 @@
 import os
 import secrets
 import smtplib
+from html import escape
 from datetime import datetime, timezone, timedelta
 from functools import wraps
 
@@ -22,8 +23,8 @@ load_dotenv(os.path.join(PROJECT_DIR, ".env"))
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", secrets.token_hex(32))
-app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
-app.config["SESSION_COOKIE_SECURE"] = False
+app.config["SESSION_COOKIE_SAMESITE"] = "None"
+app.config["SESSION_COOKIE_SECURE"] = True
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 
 cors_origins = [
@@ -31,6 +32,7 @@ cors_origins = [
     "http://127.0.0.1:5500",
     "http://localhost:5000",
     "http://127.0.0.1:5000",
+    "https://visualstudio.com",
 ]
 env_origins = os.getenv("CORS_ORIGINS")
 if env_origins:
@@ -39,7 +41,7 @@ if env_origins:
         if origin and origin not in cors_origins:
             cors_origins.append(origin)
 
-CORS(app, supports_credentials=True, origins=cors_origins)
+CORS(app, supports_credentials=True, origins=cors_origins or "*")
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode=os.getenv("SOCKETIO_ASYNC_MODE", "threading"))
 
 mongo = MongoClient(os.getenv("MONGODB_URI", "mongodb://localhost:27017/rani_cab"), serverSelectionTimeoutMS=3000)
@@ -192,7 +194,7 @@ def point(lng, lat):
     return {"type": "Point", "coordinates": [float(lng), float(lat)]}
 
 
-def send_mail(to_email, subject, body):
+def send_mail(to_email, subject, body, html_body=None):
     sender_email = os.getenv("SENDER_EMAIL") or os.getenv("sender_email")
     sender_password = os.getenv("SENDER_APP_PASSWORD") or os.getenv("sender_app_password")
     smtp_host = os.getenv("SMTP_HOST", "smtp.gmail.com")
@@ -206,6 +208,8 @@ def send_mail(to_email, subject, body):
         msg["To"] = to_email
         msg["Subject"] = subject
         msg.set_content(body)
+        if html_body:
+            msg.add_alternative(html_body, subtype="html")
         with smtplib.SMTP(smtp_host, smtp_port, timeout=10) as smtp:
             smtp.starttls()
             smtp.login(sender_email, sender_password)
@@ -214,6 +218,29 @@ def send_mail(to_email, subject, body):
     except Exception as exc:
         app.logger.warning("SMTP failed: %s", exc)
         return False
+
+
+def send_reset_otp(email, user, otp):
+    name = user.get("name", "RaniCab rider")
+    text_body = f"Hi {name},\n\nYour RaniCab password reset OTP is {otp}. It expires in 10 minutes.\n\nIf you did not request this, please ignore this email.\n\nRaniCab"
+    html_body = f"""
+        <!doctype html>
+        <html><body style=\"margin:0;background:#faf6ee;color:#1b1b1f;font-family:Arial,sans-serif;\">
+            <div style=\"max-width:560px;margin:32px auto;padding:0 20px;\">
+                <div style=\"border-top:6px solid #e8a33d;background:#fff;padding:28px 30px;\">
+                    <p style=\"margin:0 0 18px;color:#c9832a;font-size:12px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;\">RaniCab</p>
+                    <h1 style=\"margin:0 0 12px;font-size:30px;line-height:1.1;\">Reset your password</h1>
+                    <p style=\"margin:0 0 24px;color:#54555c;font-size:15px;line-height:1.6;\">Hi {escape(name)}, use this one-time code to reset your RaniCab password.</p>
+                    <div style=\"background:#fbe7c6;padding:18px;text-align:center;\">
+                        <span style=\"font-size:32px;font-weight:bold;letter-spacing:8px;\">{otp}</span>
+                    </div>
+                    <p style=\"margin:20px 0 0;color:#54555c;font-size:13px;line-height:1.6;\">This code expires in 10 minutes. If you did not request a password reset, you can safely ignore this email.</p>
+                </div>
+                <p style=\"margin:18px 0;text-align:center;color:#6b6f76;font-size:12px;\">RaniCab Mobility Pvt Ltd - Madurai, Tamil Nadu</p>
+            </div>
+        </body></html>
+    """
+    return send_mail(email, "Your RaniCab password reset OTP", text_body, html_body)
 
 
 def create_or_update_google_user(profile, phone=""):
@@ -386,11 +413,46 @@ def forgot_password_request():
     user = users.find_one({"email": email, "provider": {"$ne": "google"}, "password_hash": {"$exists": True}})
     if not user:
         return jsonify({"error": "Forgot password works only for manually signed-up accounts"}), 404
+    existing_otp = password_otps.find_one({"email": email}, sort=[("created_at", -1)])
+    existing_expiry = existing_otp.get("expires_at") if existing_otp else None
+    if existing_expiry:
+        if existing_expiry.tzinfo is not None:
+            existing_expiry = existing_expiry.replace(tzinfo=None)
+        if existing_expiry > now():
+            return {"message": "OTP already sent. Use the OTP from your email."}
     otp = f"{secrets.randbelow(1000000):06d}"
+    if not send_reset_otp(email, user, otp):
+        return jsonify({"error": "We could not send the reset email. Please try again later."}), 503
     password_otps.delete_many({"email": email})
-    password_otps.insert_one({"email": email, "otp_hash": generate_password_hash(otp), "expires_at": now() + timedelta(minutes=10), "attempts": 0, "created_at": now()})
-    send_mail(email, "Your RaniCab password reset OTP", f"Hi {user.get('name', 'RaniCab rider')},\n\nYour RaniCab password reset OTP is {otp}. It expires in 10 minutes.\n\nIf you did not request this, please ignore this email.\n\nRaniCab")
+    password_otps.insert_one({"email": email, "otp_hash": generate_password_hash(otp), "expires_at": now() + timedelta(minutes=10), "attempts": 0, "created_at": now(), "sent_at": now()})
     return {"message": "OTP sent to your registered email"}
+
+
+@app.post("/api/auth/forgot-password/resend")
+def forgot_password_resend():
+    data = request.get_json(force=True) or {}
+    email = data.get("email", "").lower().strip()
+    user = users.find_one({"email": email, "provider": {"$ne": "google"}, "password_hash": {"$exists": True}})
+    if not user:
+        return jsonify({"error": "Forgot password works only for manually signed-up accounts"}), 404
+    existing_otp = password_otps.find_one({"email": email}, sort=[("created_at", -1)])
+    if not existing_otp:
+        return jsonify({"error": "Request an OTP first."}), 400
+    sent_at = existing_otp.get("sent_at") or existing_otp.get("created_at")
+    if sent_at and sent_at.tzinfo is not None:
+        sent_at = sent_at.replace(tzinfo=None)
+    remaining_seconds = max(0, 60 - int((now() - sent_at).total_seconds())) if sent_at else 0
+    if remaining_seconds > 0:
+        return jsonify({
+            "error": f"Please wait {remaining_seconds} second(s) before requesting another OTP.",
+            "retry_after_seconds": remaining_seconds
+        }), 429
+    otp = f"{secrets.randbelow(1000000):06d}"
+    if not send_reset_otp(email, user, otp):
+        return jsonify({"error": "We could not send the reset email. Please try again later."}), 503
+    password_otps.delete_many({"email": email})
+    password_otps.insert_one({"email": email, "otp_hash": generate_password_hash(otp), "expires_at": now() + timedelta(minutes=10), "attempts": 0, "created_at": now(), "sent_at": now()})
+    return {"message": "A new OTP was sent to your email"}
 
 
 @app.post("/api/auth/forgot-password/verify")
