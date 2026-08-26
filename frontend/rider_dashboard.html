@@ -7,13 +7,15 @@
     <title>Rani Cab — Rider Dashboard</title>
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Leaflet Routing Machine CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
         href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap"
         rel="stylesheet">
     <style>
-        /* Your existing styles remain exactly the same */
+        /* All styles remain exactly as before */
         :root {
             --ink: #1B1B1F;
             --ink-soft: #54555C;
@@ -118,6 +120,7 @@
             position: relative;
             overflow: hidden;
         }
+
         #riderMap {
             height: 430px;
             width: 100%;
@@ -236,6 +239,8 @@
     </main>
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Leaflet Routing Machine JS -->
+    <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script>
         (function () {
@@ -258,33 +263,59 @@
             var riderLng = 78.1198;
             var riderLat = 9.9252;
 
-            // --- LEALET MAP INIT ---
+            // --- LEAFLET MAP INIT ---
             var map = L.map('riderMap').setView([riderLat, riderLng], 14);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             }).addTo(map);
 
             // Rider marker (own position)
-            var riderMarker = L.marker([riderLat, riderLng], { icon: L.divIcon({ html: '🧑', className: 'custom-marker', iconSize: [30, 30] }) })
-                .addTo(map)
-                .bindPopup('You');
+            var riderMarker = L.marker([riderLat, riderLng], {
+                icon: L.divIcon({ html: '🧑', className: 'custom-marker', iconSize: [30, 30] })
+            }).addTo(map).bindPopup('You');
 
             // Driver marker (initially hidden)
-            var driverMarker = L.marker([0, 0], { icon: L.divIcon({ html: '🚕', className: 'custom-marker', iconSize: [30, 30] }) })
-                .addTo(map)
-                .setOpacity(0);
+            var driverMarker = L.marker([0, 0], {
+                icon: L.divIcon({ html: '🚕', className: 'custom-marker', iconSize: [30, 30] })
+            }).addTo(map).setOpacity(0);
 
             // Pickup and dropoff markers (hidden initially)
-            var pickupMarker = L.marker([0, 0], { icon: L.divIcon({ html: '📍', className: 'custom-marker', iconSize: [24, 24] }) })
-                .addTo(map)
-                .setOpacity(0);
-            var dropoffMarker = L.marker([0, 0], { icon: L.divIcon({ html: '🏁', className: 'custom-marker', iconSize: [24, 24] }) })
-                .addTo(map)
-                .setOpacity(0);
+            var pickupMarker = L.marker([0, 0], {
+                icon: L.divIcon({ html: '📍', className: 'custom-marker', iconSize: [24, 24] })
+            }).addTo(map).setOpacity(0);
+            var dropoffMarker = L.marker([0, 0], {
+                icon: L.divIcon({ html: '🏁', className: 'custom-marker', iconSize: [24, 24] })
+            }).addTo(map).setOpacity(0);
+
+            // Route control
+            var routeControl = null;
+
+            function drawRoute(originLat, originLng, destLat, destLng) {
+                if (routeControl) {
+                    map.removeControl(routeControl);
+                    routeControl = null;
+                }
+                if (!originLat || !originLng || !destLat || !destLng) return;
+                routeControl = L.Routing.control({
+                    waypoints: [
+                        L.latLng(originLat, originLng),
+                        L.latLng(destLat, destLng)
+                    ],
+                    routeWhileDragging: false,
+                    showAlternatives: false,
+                    addWaypoints: false,
+                    draggableWaypoints: false,
+                    fitSelectedRoutes: true,
+                    lineOptions: { styles: [{ color: '#1E7A4C', weight: 6 }] },
+                    router: L.Routing.osrmv1({
+                        serviceUrl: 'https://router.project-osrm.org/route/v1'
+                    }),
+                    show: true
+                }).addTo(map);
+            }
 
             function updateRiderMarker(lat, lng) {
                 riderMarker.setLatLng([lat, lng]);
-                // Pan map to rider if no active ride
                 if (!currentActiveRide) {
                     map.panTo([lat, lng], { animate: true });
                 }
@@ -292,12 +323,9 @@
 
             function updateDriverMarker(lat, lng) {
                 driverMarker.setLatLng([lat, lng]).setOpacity(1);
-                // If there is an active ride, fit bounds to show rider and driver
                 if (currentActiveRide) {
                     var group = L.featureGroup([riderMarker, driverMarker, pickupMarker, dropoffMarker]);
                     map.fitBounds(group.getBounds(), { padding: [50, 50] });
-                } else {
-                    // Just show driver marker without moving map too much
                 }
             }
 
@@ -316,7 +344,21 @@
                 } else {
                     dropoffMarker.setOpacity(0);
                 }
-                // Fit bounds if ride has pickup and dropoff
+
+                // Draw route if both exist
+                if (ride && ride.pickup_location && ride.pickup_location.coordinates &&
+                    ride.dropoff_location && ride.dropoff_location.coordinates) {
+                    var pCoords = ride.pickup_location.coordinates;
+                    var dCoords = ride.dropoff_location.coordinates;
+                    drawRoute(pCoords[1], pCoords[0], dCoords[1], dCoords[0]);
+                } else {
+                    if (routeControl) {
+                        map.removeControl(routeControl);
+                        routeControl = null;
+                    }
+                }
+
+                // Fit bounds to show all markers (including driver if visible)
                 if (ride && ride.pickup_location && ride.dropoff_location) {
                     var group = L.featureGroup([riderMarker, pickupMarker, dropoffMarker]);
                     if (driverMarker.getOpacity() > 0) group.addLayer(driverMarker);
@@ -403,11 +445,8 @@
                     cancelRideBtn.style.display = "none";
                     callDriverBtn.textContent = "Book a Ride";
                     callDriverBtn.onclick = function () { window.location.href = "/#oneway"; };
-                    // Hide driver marker
                     driverMarker.setOpacity(0);
-                    // Show rider location
                     updateRiderMarker(riderLat, riderLng);
-                    // Clear ride markers
                     updateRideMarkers(null);
                     return;
                 }
@@ -423,7 +462,6 @@
                 dropoffEl.textContent = ride.dropoff_address || "Destination";
                 fareEl.textContent = ride.fare ? "₹" + Number(ride.fare).toLocaleString("en-IN") : "Calculating";
 
-                // Update ride markers
                 updateRideMarkers(ride);
 
                 if (ride.status === "requested") {
@@ -495,7 +533,6 @@
                     .catch(function () {});
             }
 
-            // Get rider's real location
             function fetchGeoLocation() {
                 if (!navigator.geolocation) return;
                 navigator.geolocation.getCurrentPosition(
@@ -504,9 +541,7 @@
                         riderLng = pos.coords.longitude;
                         updateRiderMarker(riderLat, riderLng);
                     },
-                    function () {
-                        // fallback: keep default
-                    },
+                    function () {},
                     { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
                 );
             }
@@ -515,7 +550,6 @@
             loadActiveRide();
             loadHistory();
 
-            // Socket.IO real-time connection
             var socket = window.io && io(apiBase, { withCredentials: true });
             if (socket) {
                 socket.on('connect', function () {
@@ -536,7 +570,6 @@
                 });
             }
 
-            // Periodic polling fallback
             setInterval(function () {
                 if (currentActiveRide && currentActiveRide.status !== "completed" && currentActiveRide.status !== "cancelled") {
                     loadActiveRide();

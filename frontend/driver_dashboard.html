@@ -7,13 +7,15 @@
     <title>Rani Cab — Driver Dashboard</title>
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Leaflet Routing Machine CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
         href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap"
         rel="stylesheet">
     <style>
-        /* Your existing styles remain exactly the same */
+        /* All styles remain exactly as before */
         :root {
             --ink: #1B1B1F;
             --ink-soft: #54555C;
@@ -118,7 +120,7 @@
             position: relative;
             overflow: hidden;
         }
-        /* Leaflet will fill the map container */
+
         #driverMap {
             height: 430px;
             width: 100%;
@@ -253,6 +255,8 @@
     </main>
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Leaflet Routing Machine JS -->
+    <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script>
         (function () {
@@ -277,28 +281,54 @@
             var driverLng = 78.1198;
             var driverLat = 9.9252;
 
-            // --- LEALET MAP INIT ---
+            // --- LEAFLET MAP INIT ---
             var map = L.map('driverMap').setView([driverLat, driverLng], 14);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             }).addTo(map);
 
             // Driver marker (own car)
-            var driverMarker = L.marker([driverLat, driverLng], { icon: L.divIcon({ html: '🚕', className: 'custom-marker', iconSize: [30, 30] }) })
-                .addTo(map)
-                .bindPopup('You');
+            var driverMarker = L.marker([driverLat, driverLng], {
+                icon: L.divIcon({ html: '🚕', className: 'custom-marker', iconSize: [30, 30] })
+            }).addTo(map).bindPopup('You');
 
             // Pickup and dropoff markers (initially hidden)
-            var pickupMarker = L.marker([0, 0], { icon: L.divIcon({ html: '📍', className: 'custom-marker', iconSize: [24, 24] }) })
-                .addTo(map)
-                .setOpacity(0);
-            var dropoffMarker = L.marker([0, 0], { icon: L.divIcon({ html: '🏁', className: 'custom-marker', iconSize: [24, 24] }) })
-                .addTo(map)
-                .setOpacity(0);
+            var pickupMarker = L.marker([0, 0], {
+                icon: L.divIcon({ html: '📍', className: 'custom-marker', iconSize: [24, 24] })
+            }).addTo(map).setOpacity(0);
+            var dropoffMarker = L.marker([0, 0], {
+                icon: L.divIcon({ html: '🏁', className: 'custom-marker', iconSize: [24, 24] })
+            }).addTo(map).setOpacity(0);
+
+            // Route control
+            var routeControl = null;
+
+            function drawRoute(originLat, originLng, destLat, destLng) {
+                if (routeControl) {
+                    map.removeControl(routeControl);
+                    routeControl = null;
+                }
+                if (!originLat || !originLng || !destLat || !destLng) return;
+                routeControl = L.Routing.control({
+                    waypoints: [
+                        L.latLng(originLat, originLng),
+                        L.latLng(destLat, destLng)
+                    ],
+                    routeWhileDragging: false,
+                    showAlternatives: false,
+                    addWaypoints: false,
+                    draggableWaypoints: false,
+                    fitSelectedRoutes: true,
+                    lineOptions: { styles: [{ color: '#1E7A4C', weight: 6 }] },
+                    router: L.Routing.osrmv1({
+                        serviceUrl: 'https://router.project-osrm.org/route/v1'
+                    }),
+                    show: true // show turn-by-turn instructions
+                }).addTo(map);
+            }
 
             function updateDriverMarker(lat, lng) {
                 driverMarker.setLatLng([lat, lng]);
-                // Also pan to driver if no active ride or if we want to follow
                 if (!currentRide || currentRide.status === 'requested') {
                     map.panTo([lat, lng], { animate: true });
                 }
@@ -308,7 +338,6 @@
                 if (ride && ride.pickup_location && ride.pickup_location.coordinates) {
                     var coords = ride.pickup_location.coordinates;
                     pickupMarker.setLatLng([coords[1], coords[0]]).setOpacity(1);
-                    // Optionally add a popup
                     pickupMarker.bindPopup('Pickup: ' + (ride.pickup_address || ''));
                 } else {
                     pickupMarker.setOpacity(0);
@@ -320,7 +349,21 @@
                 } else {
                     dropoffMarker.setOpacity(0);
                 }
-                // If there is a ride, fit map to show all markers (pickup, dropoff, driver)
+
+                // Draw road route if we have both pickup and dropoff
+                if (ride && ride.pickup_location && ride.pickup_location.coordinates &&
+                    ride.dropoff_location && ride.dropoff_location.coordinates) {
+                    var pCoords = ride.pickup_location.coordinates;
+                    var dCoords = ride.dropoff_location.coordinates;
+                    drawRoute(pCoords[1], pCoords[0], dCoords[1], dCoords[0]);
+                } else {
+                    if (routeControl) {
+                        map.removeControl(routeControl);
+                        routeControl = null;
+                    }
+                }
+
+                // Fit map to show all markers
                 if (ride && ride.pickup_location && ride.dropoff_location) {
                     var group = L.featureGroup([driverMarker, pickupMarker, dropoffMarker]);
                     map.fitBounds(group.getBounds(), { padding: [50, 50] });
@@ -472,12 +515,7 @@
                 startRideBtn.style.display = "none";
                 completeRideBtn.style.display = "none";
 
-                // Update markers
-                if (ride) {
-                    updateRideMarkers(ride);
-                } else {
-                    updateRideMarkers(null);
-                }
+                updateRideMarkers(ride);
 
                 if (!ride) {
                     pickupEl.textContent = isOnline ? "Listening nearby..." : "Offline";
@@ -559,7 +597,6 @@
                 }).catch(function () {});
             }
 
-            // Real-time location broadcast using actual GPS
             function fetchGeoLocation(callback) {
                 if (!navigator.geolocation) {
                     if (callback) callback(false);
@@ -624,10 +661,8 @@
                 }
             }
 
-            // Get initial location
             fetchGeoLocation();
 
-            // Initialize driver data
             api('/api/auth/me').then(function (res) {
                 if (res && res.user) {
                     if (res.user.driver_profile) {
@@ -646,7 +681,6 @@
                 loadPerformance();
             });
 
-            // Socket.IO
             var socket = window.io && io(apiBase, { withCredentials: true });
             if (socket) {
                 socket.on('connect', function () {
@@ -667,11 +701,9 @@
                 });
             }
 
-            // Periodic polling fallback
             setInterval(function () {
                 checkForRequests();
             }, 6000);
-
         }());
     </script>
 </body>
