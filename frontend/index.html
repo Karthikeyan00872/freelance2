@@ -20,6 +20,10 @@
             padding: 0;
         }
 
+        [hidden] {
+            display: none !important;
+        }
+
         html {
             scroll-behavior: smooth;
         }
@@ -2332,21 +2336,34 @@
 
             function updateAuthNav() {
                 var session = getSession();
-                document.querySelectorAll("[data-auth-guest]").forEach(function (el) { el.hidden = !!session; });
+                document.querySelectorAll("[data-auth-guest]").forEach(function (el) {
+                    el.hidden = !!session;
+                    el.style.display = session ? "none" : "";
+                });
                 document.querySelectorAll("[data-public-menu]").forEach(function (el) {
-                    el.hidden = !!session && session.role === "driver" && el.getAttribute("data-route") !== "home";
+                    var hide = !!session && session.role === "driver" && el.getAttribute("data-route") !== "home";
+                    el.hidden = hide;
+                    el.style.display = hide ? "none" : "";
                 });
                 document.querySelectorAll("[data-rider-only]").forEach(function (el) {
-                    el.hidden = !session || session.role !== "rider";
+                    var show = !!session && session.role === "rider";
+                    el.hidden = !show;
+                    el.style.display = show ? "" : "none";
                 });
                 document.querySelectorAll("[data-driver-only]").forEach(function (el) {
-                    el.hidden = !session || session.role !== "driver";
+                    var show = !!session && session.role === "driver";
+                    el.hidden = !show;
+                    el.style.display = show ? "" : "none";
                 });
                 document.querySelectorAll("[data-auth-user]").forEach(function (el) {
                     el.hidden = !session;
-                    el.textContent = session ? session.name : "";
+                    el.style.display = session ? "" : "none";
+                    el.textContent = session ? (session.name || session.email || "User") : "";
                 });
-                document.querySelectorAll("[data-logout]").forEach(function (el) { el.hidden = !session; });
+                document.querySelectorAll("[data-logout]").forEach(function (el) {
+                    el.hidden = !session;
+                    el.style.display = session ? "" : "none";
+                });
             }
 
             function logout() {
@@ -2589,7 +2606,12 @@
                 if (res && res.user) {
                     saveSession(res.user);
                 }
-            }).catch(function () {});
+            }).catch(function (err) {
+                if (err && err.message === "Not authenticated") {
+                    localStorage.removeItem("ranicab-session");
+                    updateAuthNav();
+                }
+            });
 
             document.querySelectorAll("[data-logout]").forEach(function (el) {
                 el.addEventListener("click", function () { logout(); });
