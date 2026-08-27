@@ -25,18 +25,53 @@
         }
 
         .message-toast {
-            position: fixed; top: 24px; right: 24px; z-index: 2000;
-            display: flex; align-items: flex-start; gap: 14px;
-            width: min(380px, calc(100vw - 32px)); padding: 16px 18px;
-            background: var(--paper-raised); border: 1px solid var(--border);
-            border-left: 5px solid var(--marigold); border-radius: var(--radius-md);
-            box-shadow: 0 14px 32px var(--shadow); font-weight: 600;
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            z-index: 2000;
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            width: min(380px, calc(100vw - 32px));
+            padding: 16px 18px;
+            background: var(--paper-raised);
+            border: 1px solid var(--border);
+            border-left: 5px solid var(--marigold);
+            border-radius: var(--radius-md);
+            box-shadow: 0 14px 32px var(--shadow);
+            font-weight: 600;
             animation: toast-in .2s ease-out;
         }
-        .message-toast.error { border-left-color: var(--red); }
-        .message-toast.success { border-left-color: var(--green); }
-        .message-toast button { flex: 0 0 auto; border: 0; background: transparent; color: var(--ink-soft); font-size: 20px; line-height: 1; cursor: pointer; }
-        @keyframes toast-in { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .message-toast.error {
+            border-left-color: var(--red);
+        }
+
+        .message-toast.success {
+            border-left-color: var(--green);
+        }
+
+        .message-toast button {
+            flex: 0 0 auto;
+            border: 0;
+            background: transparent;
+            color: var(--ink-soft);
+            font-size: 20px;
+            line-height: 1;
+            cursor: pointer;
+        }
+
+        @keyframes toast-in {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
 
         html {
             scroll-behavior: smooth;
@@ -353,11 +388,11 @@
             gap: 10px;
         }
 
-            .auth-user {
-                color: var(--ink);
-                font-weight: 700;
-                white-space: nowrap
-            }
+        .auth-user {
+            color: var(--ink);
+            font-weight: 700;
+            white-space: nowrap
+        }
 
         .hamburger {
             display: none;
@@ -1489,13 +1524,14 @@
                 </span>
                 Rani<span class="go">Cab</span>
             </a>
-            <nav class="primary">
+            <nav class="primary">                
                 <a href="#home" data-route="home" class="active" data-public-menu>Home</a>
                 <a href="#oneway" data-route="oneway" data-public-menu>Oneway Trip</a>
                 <a href="#hourly" data-route="hourly" data-public-menu>Hourly Rental</a>
                 <a href="#airport" data-route="airport" data-public-menu>Airport Transfer</a>
                 <a href="/frontend/rider_dashboard.html" data-auth-dashboard data-rider-only hidden>Rider Dashboard</a>
-                <a href="/frontend/driver_dashboard.html" data-auth-dashboard data-driver-only hidden>Driver Dashboard</a>
+                <a href="/frontend/driver_dashboard.html" data-auth-dashboard data-driver-only hidden>Driver
+                    Dashboard</a>
             </nav>
             <div class="nav-actions">
                 <button class="btn btn-ghost btn-sm" data-open-login data-auth-guest>Log in</button>
@@ -1558,7 +1594,7 @@
                         </div>
                     </div>
 
-                        <img class="home-visual" src="../src/hm.png" alt="RaniCab ride across Tamil Nadu">
+                    <img class="home-visual" src="../src/hm.png" alt="RaniCab ride across Tamil Nadu">
                 </div>
             </div>
 
@@ -1753,7 +1789,8 @@
                                             type="email" id="ow-email" placeholder="you@email.com"></div>
                                 </div>
                                 <div class="fare-note"><span>Estimated fare</span><b id="ow-fare">₹2,640</b></div>
-                                <button class="btn btn-primary btn-block" id="bookOnewayBtn" type="button">Book Oneway Trip</button>
+                                <button class="btn btn-primary btn-block" id="bookOnewayBtn" type="button">Book Oneway
+                                    Trip</button>
                             </div>
                         </div>
                     </div>
@@ -1850,7 +1887,8 @@
                                             type="email" id="hp-email" placeholder="you@email.com"></div>
                                 </div>
                                 <div class="fare-note"><span>Package fare</span><b id="hourlyFare">₹1,080</b></div>
-                                <button class="btn btn-primary btn-block" id="bookHourlyBtn" type="button">Book Hourly Rental</button>
+                                <button class="btn btn-primary btn-block" id="bookHourlyBtn" type="button">Book Hourly
+                                    Rental</button>
                             </div>
                         </div>
                     </div>
@@ -1962,7 +2000,8 @@
                                             type="email" id="ap-email" placeholder="you@email.com"></div>
                                 </div>
                                 <div class="fare-note"><span>Transfer fare</span><b id="airportFare">₹650</b></div>
-                                <button class="btn btn-primary btn-block" id="bookAirportBtn" type="button">Book Airport Transfer</button>
+                                <button class="btn btn-primary btn-block" id="bookAirportBtn" type="button">Book Airport
+                                    Transfer</button>
                                 <p class="stub-note">✂ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -</p>
                             </div>
                         </div>
@@ -2185,17 +2224,18 @@
                     <h2 class="modal-title">One more step</h2>
                     <p class="modal-sub">Add a phone number so drivers can reach you about your ride.</p>
                     <div class="field"><label for="gl-phone">Phone Number</label><input class="input" type="tel"
-                            id="gl-phone" placeholder="98765 43210"></div>
+                            id="gl-phone" placeholder="+91" maxlength="10"></div>
                     <button class="btn btn-primary btn-block" id="googlePhoneContinue" type="button">Continue</button>
                 </div>
 
                 <!-- forgot password -->
                 <div class="step-panel" data-loginpanel="forgot">
                     <h2 class="modal-title">Reset your password</h2>
-                    <p class="modal-sub">Forgot password works only for riders who signed up with email and password. We'll send a one-time OTP.</p>
+                    <p class="modal-sub">Forgot password works only for riders who signed up with email and password.
+                        We'll send a one-time OTP.</p>
                     <div class="field"><label for="fp-email">Email Address</label><input class="input" type="email"
                             id="fp-email" placeholder="you@email.com" autocomplete="email"></div>
-                        <p class="error-msg" id="forgotError">Enter the email address used for your RaniCab account.</p>
+                    <p class="error-msg" id="forgotError">Enter the email address used for your RaniCab account.</p>
                     <button class="btn btn-primary btn-block" id="sendResetBtn" type="button">Send OTP</button>
                     <p class="form-note"><a href="#" data-back-login>← Back to log in</a></p>
                 </div>
@@ -2221,10 +2261,13 @@
                             </svg></div>
                         <h3>Check your inbox</h3>
                         <p>Enter the OTP sent from RaniCab and choose a new password.</p>
-                        <div class="field"><label for="fp-otp">OTP</label><input class="input" id="fp-otp" inputmode="numeric" maxlength="6" placeholder="123456"></div>
-                        <div class="field pw-field"><label for="fp-pass">New Password</label><input class="input" type="password" id="fp-pass" minlength="6" placeholder="••••••••"></div>
+                        <div class="field"><label for="fp-otp">OTP</label><input class="input" id="fp-otp"
+                                inputmode="numeric" maxlength="6" placeholder="123456"></div>
+                        <div class="field pw-field"><label for="fp-pass">New Password</label><input class="input"
+                                type="password" id="fp-pass" minlength="6" placeholder="••••••••"></div>
                         <p class="error-msg" id="resetError">Enter the OTP and a 6+ character password.</p>
-                        <button class="btn btn-primary btn-block" id="verifyResetBtn" type="button">Reset Password</button>
+                        <button class="btn btn-primary btn-block" id="verifyResetBtn" type="button">Reset
+                            Password</button>
                         <button class="btn btn-ghost btn-block" id="resendResetBtn" type="button">Resend OTP</button>
                         <p class="error-msg" id="resendError"></p>
                         <button class="btn btn-outline btn-block" data-back-login type="button">Back to log in</button>
@@ -2414,7 +2457,7 @@
 
             function logout() {
                 return api("/api/auth/logout", { method: "POST" })
-                    .catch(function () {})
+                    .catch(function () { })
                     .finally(function () {
                         localStorage.removeItem("ranicab-session");
                         updateAuthNav();
