@@ -669,21 +669,12 @@ def accept_ride(ride_id):
     ride_oid = oid(ride_id)
     if not ride_oid:
         return jsonify({"error": "Invalid ride ID"}), 400
-    
+
     driver = drivers.find_one({"user_id": request.user["_id"]})
     if not driver:
         return jsonify({"error": "Driver profile not found"}), 404
-    
-    result = rides.update_one(
-        {"_id": ride_oid, "status": "requested"},
-        {"$set": {"driver_id": request.user["_id"], "status": "accepted", "accepted_at": now()}}
-    )
-    if result.modified_count == 0:
-        return jsonify({"error": "Ride already accepted or no longer available"}), 409
-    
-    ride = rides.find_one({"_id": ride_oid})
-    payload = serialize(ride)
-    
+
+    # Build driver info from the logged-in driver user and driver profile
     driver_info = {
         "name": request.user.get("name", "Driver"),
         "phone": request.user.get("phone", ""),
@@ -691,12 +682,36 @@ def accept_ride(ride_id):
         "vehicle_model": driver.get("vehicle_model", "Sedan"),
         "license_plate": driver.get("license_plate", "TN-01-AB-1234"),
     }
+
+    # Update ride: set driver_id, status, and store driver_info directly in the ride document
+    result = rides.update_one(
+        {"_id": ride_oid, "status": "requested"},
+        {
+            "$set": {
+                "driver_id": request.user["_id"],
+                "status": "accepted",
+                "accepted_at": now(),
+                "driver_info": driver_info,      # store here for good
+            }
+        }
+    )
+    if result.modified_count == 0:
+        return jsonify({"error": "Ride already accepted or no longer available"}), 409
+
+    ride = rides.find_one({"_id": ride_oid})
+    payload = serialize(ride)
+
+    # Add driver to payload (already stored in ride, but we also add explicitly)
     payload["driver"] = driver_info
-    
+
+    # Emit to the rider and to all drivers
     socketio.emit("ride_updated", payload, room=f"rider:{ride['rider_id']}")
     socketio.emit("ride_updated", payload, room="drivers")
-    
-    return {"ride": payload, "driver": serialize(driver)}
+
+    # Optional debug log
+    app.logger.info(f"Ride {ride_id} accepted by driver {request.user['_id']}, driver_info: {driver_info}")
+
+    return {"ride": payload, "driver": driver_info}
 
 
 @app.post("/api/rides/<ride_id>/start")
@@ -749,21 +764,22 @@ def unassign_ride(ride_id):
     if not ride_oid:
         return jsonify({"error": "Invalid ride ID"}), 400
 
-    # Only allow unassign if the ride is accepted and assigned to this driver
     ride = rides.find_one({"_id": ride_oid, "driver_id": request.user["_id"], "status": "accepted"})
     if not ride:
         return jsonify({"error": "Ride not found, not assigned to you, or not in accepted state"}), 404
 
-    # Reset status to requested and remove driver
+    # Reset status and remove driver_id and driver_info
     rides.update_one(
         {"_id": ride_oid},
-        {"$set": {"status": "requested", "driver_id": None, "accepted_at": None}}
+        {
+            "$set": {"status": "requested", "driver_id": None, "accepted_at": None},
+            "$unset": {"driver_info": ""}   # remove stored driver info
+        }
     )
 
     updated_ride = rides.find_one({"_id": ride_oid})
     payload = serialize(updated_ride)
 
-    # Notify drivers and the rider
     socketio.emit("ride_updated", payload, room="drivers")
     socketio.emit("ride_updated", payload, room=f"rider:{ride['rider_id']}")
 
@@ -803,18 +819,25 @@ def active_ride():
     active = rides.find_one({key: request.user["_id"], "status": {"$in": ACTIVE_STATUSES}}, sort=[("created_at", -1)])
     if not active:
         return {"ride": None}
-    
+
     payload = serialize(active)
+
     if request.user["role"] == "rider" and active.get("driver_id"):
-        driver_user = users.find_one({"_id": active["driver_id"]}) or {}
-        driver_doc = drivers.find_one({"user_id": active["driver_id"]}) or {}
-        payload["driver"] = {
-            "name": driver_user.get("name", "Driver"),
-            "phone": driver_user.get("phone", ""),
-            "rating": driver_user.get("rating", 5.0),
-            "vehicle_model": driver_doc.get("vehicle_model", "Sedan"),
-            "license_plate": driver_doc.get("license_plate", "TN-01-AB-1234"),
-        }
+        # First, try to use stored driver_info (if present)
+        driver_info = active.get("driver_info")
+        if driver_info:
+            payload["driver"] = driver_info
+        else:
+            # Fallback: look up driver user and profile (backward compatibility)
+            driver_user = users.find_one({"_id": active["driver_id"]}) or {}
+            driver_doc = drivers.find_one({"user_id": active["driver_id"]}) or {}
+            payload["driver"] = {
+                "name": driver_user.get("name", "Driver"),
+                "phone": driver_user.get("phone", ""),
+                "rating": driver_user.get("rating", 5.0),
+                "vehicle_model": driver_doc.get("vehicle_model", "Sedan"),
+                "license_plate": driver_doc.get("license_plate", "TN-01-AB-1234"),
+            }
     elif request.user["role"] == "driver" and active.get("rider_id"):
         rider_user = users.find_one({"_id": active["rider_id"]}) or {}
         payload["rider"] = {
@@ -822,6 +845,7 @@ def active_ride():
             "phone": active.get("rider_phone") or rider_user.get("phone", ""),
             "rating": rider_user.get("rating", 5.0),
         }
+
     return {"ride": payload}
 
 
@@ -834,8 +858,12 @@ def ride_history():
     for r in history:
         doc = serialize(r)
         if request.user["role"] == "rider" and r.get("driver_id"):
-            d_user = users.find_one({"_id": r["driver_id"]}) or {}
-            doc["driver_name"] = d_user.get("name", "Driver")
+            # Try to get driver name from stored driver_info or fallback to user lookup
+            if r.get("driver_info"):
+                doc["driver_name"] = r["driver_info"].get("name", "Driver")
+            else:
+                d_user = users.find_one({"_id": r["driver_id"]}) or {}
+                doc["driver_name"] = d_user.get("name", "Driver")
         elif request.user["role"] == "driver" and r.get("rider_id"):
             r_user = users.find_one({"_id": r["rider_id"]}) or {}
             doc["rider_name"] = r_user.get("name", "Rider")

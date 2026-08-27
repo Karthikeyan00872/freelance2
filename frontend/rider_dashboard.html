@@ -7,15 +7,12 @@
     <title>Rani Cab — Rider Dashboard</title>
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <!-- Leaflet Routing Machine CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap"
-        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
     <style>
-        /* All styles remain exactly as before */
+        /* All styles unchanged – same as before */
         :root {
             --ink: #1B1B1F;
             --ink-soft: #54555C;
@@ -31,25 +28,11 @@
             --radius-lg: 22px;
             --shadow: rgba(27, 27, 31, .10)
         }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0
-        }
-
-        [hidden] {
-            display: none !important;
-        }
-
+        * { box-sizing: border-box; margin: 0; padding: 0 }
+        [hidden] { display: none !important; }
         .message-toast {
-            position: fixed;
-            top: 24px;
-            right: 24px;
-            z-index: 2000;
-            display: flex;
-            align-items: flex-start;
-            gap: 14px;
+            position: fixed; top: 24px; right: 24px; z-index: 2000;
+            display: flex; align-items: flex-start; gap: 14px;
             width: min(380px, calc(100vw - 32px));
             padding: 16px 18px;
             background: var(--paper-raised);
@@ -60,178 +43,44 @@
             font-weight: 600;
             animation: toast-in .2s ease-out;
         }
-
         .message-toast.error { border-left-color: var(--red); }
         .message-toast.success { border-left-color: var(--green); }
         .message-toast button {
-            flex: 0 0 auto;
-            border: 0;
-            background: transparent;
-            color: var(--ink-soft);
-            font-size: 20px;
-            line-height: 1;
-            cursor: pointer;
+            flex: 0 0 auto; border: 0; background: transparent;
+            color: var(--ink-soft); font-size: 20px; line-height: 1; cursor: pointer;
         }
-
         @keyframes toast-in {
             from { opacity: 0; transform: translateY(-10px); }
             to { opacity: 1; transform: translateY(0); }
         }
-
-        body {
-            font-family: 'Work Sans', sans-serif;
-            background: var(--paper);
-            color: var(--ink);
-            line-height: 1.5
-        }
-
-        .container {
-            max-width: 1180px;
-            margin: 0 auto;
-            padding: 24px
-        }
-
-        .eyebrow {
-            font: 600 12px 'IBM Plex Mono', monospace;
-            letter-spacing: .14em;
-            text-transform: uppercase;
-            color: var(--marigold-dark)
-        }
-
-        h1,
-        h2,
-        h3 {
-            font-family: 'Oswald', sans-serif;
-            line-height: 1.1
-        }
-
-        .nav,
-        .card {
-            background: var(--paper-raised);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
-            box-shadow: 0 14px 32px var(--shadow)
-        }
-
-        .nav {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 18px 22px;
-            margin-bottom: 24px
-        }
-
-        .nav-actions {
-            display: flex;
-            align-items: center;
-            gap: 10px
-        }
-
-        .nav-link {
-            color: var(--ink);
-            text-decoration: none;
-            font-weight: 700
-        }
-
-        .dashboard-links {
-            display: flex;
-            gap: 16px;
-            flex-wrap: wrap
-        }
-
-        .grid {
-            display: grid;
-            grid-template-columns: 1.15fr .85fr;
-            gap: 22px
-        }
-
-        .card {
-            padding: 22px
-        }
-
-        .map {
-            min-height: 430px;
-            border-radius: var(--radius-lg);
-            background: #e8e0d4;
-            position: relative;
-            overflow: hidden;
-        }
-
-        #riderMap {
-            height: 430px;
-            width: 100%;
-            border-radius: var(--radius-lg);
-        }
-
-        .btn {
-            display: inline-flex;
-            padding: 14px 26px;
-            border-radius: 999px;
-            font-weight: 700;
-            border: 0;
-            background: var(--marigold);
-            box-shadow: 0 6px 0 var(--marigold-dark);
-            cursor: pointer;
-        }
-
-        .badge {
-            display: inline-flex;
-            padding: 7px 12px;
-            border-radius: 999px;
-            background: #FBE7C6;
-            color: var(--marigold-dark);
-            font-weight: 700
-        }
-
-        .list {
-            display: grid;
-            gap: 12px;
-            margin-top: 14px
-        }
-
-        .row {
-            display: flex;
-            justify-content: space-between;
-            gap: 12px;
-            padding: 12px 0;
-            border-bottom: 1px solid var(--border)
-        }
-
-        .metric {
-            font-size: 30px;
-            font-weight: 800
-        }
-
-        .chart {
-            display: flex;
-            align-items: end;
-            gap: 10px;
-            height: 160px;
-            margin-top: 18px
-        }
-
-        .bar {
-            flex: 1;
-            background: var(--marigold);
-            border-radius: 10px 10px 0 0;
-            min-height: 28px
-        }
-
-        .muted {
-            color: var(--ink-soft)
-        }
-
+        body { font-family: 'Work Sans', sans-serif; background: var(--paper); color: var(--ink); line-height: 1.5 }
+        .container { max-width: 1180px; margin: 0 auto; padding: 24px }
+        .eyebrow { font: 600 12px 'IBM Plex Mono', monospace; letter-spacing: .14em; text-transform: uppercase; color: var(--marigold-dark) }
+        h1, h2, h3 { font-family: 'Oswald', sans-serif; line-height: 1.1 }
+        .nav, .card { background: var(--paper-raised); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: 0 14px 32px var(--shadow) }
+        .nav { display: flex; justify-content: space-between; align-items: center; padding: 18px 22px; margin-bottom: 24px }
+        .nav-actions { display: flex; align-items: center; gap: 10px }
+        .nav-link { color: var(--ink); text-decoration: none; font-weight: 700 }
+        .dashboard-links { display: flex; gap: 16px; flex-wrap: wrap }
+        .grid { display: grid; grid-template-columns: 1.15fr .85fr; gap: 22px }
+        .card { padding: 22px }
+        .map { min-height: 430px; border-radius: var(--radius-lg); background: #e8e0d4; position: relative; overflow: hidden; }
+        #riderMap { height: 430px; width: 100%; border-radius: var(--radius-lg); }
+        .btn { display: inline-flex; padding: 14px 26px; border-radius: 999px; font-weight: 700; border: 0; background: var(--marigold); box-shadow: 0 6px 0 var(--marigold-dark); cursor: pointer; }
+        .badge { display: inline-flex; padding: 7px 12px; border-radius: 999px; background: #FBE7C6; color: var(--marigold-dark); font-weight: 700 }
+        .list { display: grid; gap: 12px; margin-top: 14px }
+        .row { display: flex; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border) }
+        .metric { font-size: 30px; font-weight: 800 }
+        .chart { display: flex; align-items: end; gap: 10px; height: 160px; margin-top: 18px }
+        .bar { flex: 1; background: var(--marigold); border-radius: 10px 10px 0 0; min-height: 28px }
+        .muted { color: var(--ink-soft) }
         @media(max-width:850px) {
-            .grid {
-                grid-template-columns: 1fr
-            }
-
-            .nav {
-                align-items: flex-start;
-                gap: 12px;
-                flex-direction: column
-            }
+            .grid { grid-template-columns: 1fr }
+            .nav { align-items: flex-start; gap: 12px; flex-direction: column }
         }
+        /* Debug area */
+        .debug-json { background: #f0ede8; padding: 10px; border-radius: 8px; font-size: 12px; overflow: auto; max-height: 200px; margin-top: 10px; border: 1px solid var(--border); display: none; }
+        .debug-json.show { display: block; }
     </style>
 </head>
 
@@ -240,8 +89,19 @@
         <section class="nav">
             <div><span class="eyebrow">Rider Dashboard</span>
                 <h1>Your trip command center</h1>
-            </div><nav class="dashboard-links"><a class="nav-link" href="/#home">Home</a><a class="nav-link" href="/#oneway">Oneway Trip</a><a class="nav-link" href="/#hourly">Hourly Rental</a><a class="nav-link" href="/#airport">Airport Transfer</a><a class="nav-link" href="/frontend/rider_dashboard.html">Rider Dashboard</a></nav><div class="nav-actions"><button class="btn" id="logoutButton" type="button">Log out</button></div>
+            </div>
+            <nav class="dashboard-links">
+                <a class="nav-link" href="/#home">Home</a>
+                <a class="nav-link" href="/#oneway">Oneway Trip</a>
+                <a class="nav-link" href="/#hourly">Hourly Rental</a>
+                <a class="nav-link" href="/#airport">Airport Transfer</a>
+                <a class="nav-link" href="/frontend/rider_dashboard.html">Rider Dashboard</a>
+            </nav>
+            <div class="nav-actions">
+                <button class="btn" id="logoutButton" type="button">Log out</button>
+            </div>
         </section>
+
         <section class="grid">
             <div class="card">
                 <div class="map" id="mapContainer" aria-label="Live map for route tracking">
@@ -264,24 +124,29 @@
                 <div style="display:flex; gap:10px; margin-top:18px; flex-wrap:wrap;">
                     <button class="btn" id="callDriverBtn" style="flex:1" type="button">Call Driver</button>
                     <button class="btn" id="cancelRideBtn" style="flex:1; background:var(--ink); color:#fff; box-shadow:0 6px 0 #000;" type="button">Cancel Ride</button>
-                </div>
+                    <button class="btn" id="refreshBtn" style="flex:0 0 auto; background:var(--ink-soft); box-shadow:0 6px 0 #333; color:#fff;" type="button">↻ Refresh</button>
+                </div>            
+                <pre id="debugJson" class="debug-json"></pre>
             </aside>
         </section>
+
         <section class="card" style="margin-top:22px">
             <h2>Ride History</h2>
             <p class="muted" id="historySub">Completed trips are saved here automatically.</p>
             <div id="historyList" class="list"></div>
         </section>
     </main>
+
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <!-- Leaflet Routing Machine JS -->
     <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+
     <script>
         (function () {
             "use strict";
 
+            // ---------- Toast ----------
             function showMessage(message, type) {
                 var toast = document.createElement("div");
                 var closeButton = document.createElement("button");
@@ -297,6 +162,7 @@
                 window.setTimeout(function () { if (toast.isConnected) toast.remove(); }, 4500);
             }
 
+            // ---------- Session ----------
             var session = null;
             try {
                 session = JSON.parse(localStorage.getItem('ranicab-session') || 'null');
@@ -314,23 +180,20 @@
             var riderLng = 78.1198;
             var riderLat = 9.9252;
 
-            // --- LEAFLET MAP INIT ---
+            // ---------- Leaflet Map (unchanged) ----------
             var map = L.map('riderMap').setView([riderLat, riderLng], 14);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             }).addTo(map);
 
-            // Rider marker (own position)
             var riderMarker = L.marker([riderLat, riderLng], {
                 icon: L.divIcon({ html: '🧑YOU', className: 'custom-marker', iconSize: [30, 30] })
             }).addTo(map).bindPopup('You');
 
-            // Driver marker (initially hidden)
             var driverMarker = L.marker([0, 0], {
                 icon: L.divIcon({ html: '🚕DRIVER', className: 'custom-marker', iconSize: [30, 30] })
             }).addTo(map).setOpacity(0);
 
-            // Pickup and dropoff markers (hidden initially)
             var pickupMarker = L.marker([0, 0], {
                 icon: L.divIcon({ html: '📍', className: 'custom-marker', iconSize: [24, 24] })
             }).addTo(map).setOpacity(0);
@@ -338,42 +201,35 @@
                 icon: L.divIcon({ html: '🏁', className: 'custom-marker', iconSize: [24, 24] })
             }).addTo(map).setOpacity(0);
 
-            // Route control
+            // Leaflet markers have no getOpacity(); track visibility ourselves
+            var driverVisible = false;
+
             var routeControl = null;
 
             function drawRoute(originLat, originLng, destLat, destLng) {
-                if (routeControl) {
-                    map.removeControl(routeControl);
-                    routeControl = null;
-                }
+                if (routeControl) { map.removeControl(routeControl); routeControl = null; }
                 if (!originLat || !originLng || !destLat || !destLng) return;
                 routeControl = L.Routing.control({
-                    waypoints: [
-                        L.latLng(originLat, originLng),
-                        L.latLng(destLat, destLng)
-                    ],
+                    waypoints: [L.latLng(originLat, originLng), L.latLng(destLat, destLng)],
                     routeWhileDragging: false,
                     showAlternatives: false,
                     addWaypoints: false,
                     draggableWaypoints: false,
                     fitSelectedRoutes: true,
                     lineOptions: { styles: [{ color: '#1E7A4C', weight: 6 }] },
-                    router: L.Routing.osrmv1({
-                        serviceUrl: 'https://router.project-osrm.org/route/v1'
-                    }),
+                    router: L.Routing.osrmv1({ serviceUrl: 'https://router.project-osrm.org/route/v1' }),
                     show: true
                 }).addTo(map);
             }
 
             function updateRiderMarker(lat, lng) {
                 riderMarker.setLatLng([lat, lng]);
-                if (!currentActiveRide) {
-                    map.panTo([lat, lng], { animate: true });
-                }
+                if (!currentActiveRide) map.panTo([lat, lng], { animate: true });
             }
 
             function updateDriverMarker(lat, lng) {
                 driverMarker.setLatLng([lat, lng]).setOpacity(1);
+                driverVisible = true;
                 if (currentActiveRide) {
                     var group = L.featureGroup([riderMarker, driverMarker, pickupMarker, dropoffMarker]);
                     map.fitBounds(group.getBounds(), { padding: [50, 50] });
@@ -385,40 +241,31 @@
                     var coords = ride.pickup_location.coordinates;
                     pickupMarker.setLatLng([coords[1], coords[0]]).setOpacity(1);
                     pickupMarker.bindPopup('Pickup: ' + (ride.pickup_address || ''));
-                } else {
-                    pickupMarker.setOpacity(0);
-                }
+                } else { pickupMarker.setOpacity(0); }
                 if (ride && ride.dropoff_location && ride.dropoff_location.coordinates) {
                     var coords = ride.dropoff_location.coordinates;
                     dropoffMarker.setLatLng([coords[1], coords[0]]).setOpacity(1);
                     dropoffMarker.bindPopup('Dropoff: ' + (ride.dropoff_address || ''));
-                } else {
-                    dropoffMarker.setOpacity(0);
-                }
+                } else { dropoffMarker.setOpacity(0); }
 
-                // Draw route if both exist
                 if (ride && ride.pickup_location && ride.pickup_location.coordinates &&
                     ride.dropoff_location && ride.dropoff_location.coordinates) {
                     var pCoords = ride.pickup_location.coordinates;
                     var dCoords = ride.dropoff_location.coordinates;
                     drawRoute(pCoords[1], pCoords[0], dCoords[1], dCoords[0]);
                 } else {
-                    if (routeControl) {
-                        map.removeControl(routeControl);
-                        routeControl = null;
-                    }
+                    if (routeControl) { map.removeControl(routeControl);
+                        routeControl = null; }
                 }
 
-                // Fit bounds to show all markers (including driver if visible)
                 if (ride && ride.pickup_location && ride.dropoff_location) {
                     var group = L.featureGroup([riderMarker, pickupMarker, dropoffMarker]);
-                    if (driverMarker.getOpacity() > 0) group.addLayer(driverMarker);
+                    if (driverVisible) group.addLayer(driverMarker);
                     map.fitBounds(group.getBounds(), { padding: [50, 50] });
                 }
             }
 
-            // --- END MAP INIT ---
-
+            // ---------- API helper ----------
             function api(path, options) {
                 return fetch(apiBase + path, Object.assign({
                     credentials: "include",
@@ -431,6 +278,7 @@
                 });
             }
 
+            // ---------- Logout ----------
             document.getElementById('logoutButton').addEventListener('click', function () {
                 api('/api/auth/logout', { method: 'POST' })
                     .catch(function () {})
@@ -440,6 +288,7 @@
                     });
             });
 
+            // ---------- DOM references ----------
             var badgeEl = document.getElementById('rideStatusBadge');
             var pickupEl = document.getElementById('pickup');
             var dropoffEl = document.getElementById('dropoff');
@@ -449,7 +298,18 @@
             var driverRatingEl = document.getElementById('driverRating');
             var callDriverBtn = document.getElementById('callDriverBtn');
             var cancelRideBtn = document.getElementById('cancelRideBtn');
+            var refreshBtn = document.getElementById('refreshBtn');
+            var debugJson = document.getElementById('debugJson');
+            var toggleDebugBtn = document.getElementById('toggleDebugBtn');
 
+            if (toggleDebugBtn) {
+                toggleDebugBtn.addEventListener('click', function() {
+                    debugJson.classList.toggle('show');
+                    toggleDebugBtn.textContent = debugJson.classList.contains('show') ? 'Hide raw data' : 'Show raw ride data';
+                });
+            }
+
+            // ---------- Call & Cancel ----------
             callDriverBtn.addEventListener('click', function () {
                 if (assignedDriverPhone) {
                     window.location.href = "tel:" + assignedDriverPhone;
@@ -459,12 +319,8 @@
             });
 
             cancelRideBtn.addEventListener('click', function () {
-                if (!currentActiveRide) {
-                    showMessage("No active ride to cancel.", "error");
-                    return;
-                }
+                if (!currentActiveRide) { showMessage("No active ride to cancel.", "error"); return; }
                 if (!confirm("Are you sure you want to cancel this ride?")) return;
-
                 cancelRideBtn.disabled = true;
                 api('/api/rides/' + currentActiveRide.id + '/cancel', { method: 'POST' })
                     .then(function () {
@@ -472,16 +328,24 @@
                         loadActiveRide();
                         loadHistory();
                     })
-                    .catch(function (err) {
-                        showMessage("Could not cancel ride: " + err.message, "error");
-                    })
-                    .finally(function () {
-                        cancelRideBtn.disabled = false;
-                    });
+                    .catch(function (err) { showMessage("Could not cancel ride: " + err.message, "error"); })
+                    .finally(function () { cancelRideBtn.disabled = false; });
             });
 
+            refreshBtn.addEventListener('click', function () {
+                loadActiveRide();
+                loadHistory();
+                showMessage("Refreshed ride data", "success");
+            });
+
+            // ---------- Core UI update ----------
             function updateRideUI(ride) {
+                console.log('🔄 updateRideUI called with ride:', ride);
                 currentActiveRide = ride;
+
+                // Show raw data in debug panel
+                debugJson.textContent = JSON.stringify(ride, null, 2);
+
                 if (!ride) {
                     badgeEl.textContent = "No active ride";
                     badgeEl.style.background = "#FBE7C6";
@@ -497,6 +361,7 @@
                     callDriverBtn.textContent = "Book a Ride";
                     callDriverBtn.onclick = function () { window.location.href = "/#oneway"; };
                     driverMarker.setOpacity(0);
+                    driverVisible = false;
                     updateRiderMarker(riderLat, riderLng);
                     updateRideMarkers(null);
                     return;
@@ -515,6 +380,7 @@
 
                 updateRideMarkers(ride);
 
+                // ---------- Status & Driver info ----------
                 if (ride.status === "requested") {
                     badgeEl.textContent = "Searching for a driver...";
                     badgeEl.style.background = "#FBE7C6";
@@ -524,43 +390,62 @@
                     driverRatingEl.textContent = "★★★★★";
                     assignedDriverPhone = "";
                     driverMarker.setOpacity(0);
-                } else if (ride.status === "accepted") {
-                    badgeEl.textContent = "Driver accepted & on the way";
-                    badgeEl.style.background = "#d4edda";
-                    badgeEl.style.color = "#155724";
+                    driverVisible = false;
+                } else if (ride.status === "accepted" || ride.status === "ongoing") {
+                    // ---- CRITICAL: check for driver object ----
                     if (ride.driver) {
+                        console.log('✅ Driver object found:', ride.driver);
                         driverNameEl.textContent = ride.driver.name || "Driver";
                         driverVehicleEl.textContent = (ride.driver.vehicle_model || "Sedan") + " · " + (ride.driver.license_plate || "TN-01-AB-1234");
                         driverRatingEl.textContent = (ride.driver.rating || "5.0") + " ★";
                         assignedDriverPhone = ride.driver.phone || "";
+                    } else {
+                        console.warn('⚠️ ride.driver is missing!');
+                        driverNameEl.textContent = "Driver assigned (loading details...)";
+                        driverVehicleEl.textContent = "Please refresh";
+                        driverRatingEl.textContent = "—";
+                        assignedDriverPhone = "";
                     }
-                } else if (ride.status === "ongoing") {
-                    badgeEl.textContent = "Trip in progress";
-                    badgeEl.style.background = "#cce5ff";
-                    badgeEl.style.color = "#004085";
-                    if (ride.driver) {
-                        driverNameEl.textContent = ride.driver.name || "Driver";
-                        driverVehicleEl.textContent = (ride.driver.vehicle_model || "Sedan") + " · " + (ride.driver.license_plate || "TN-01-AB-1234");
-                        driverRatingEl.textContent = (ride.driver.rating || "5.0") + " ★";
-                        assignedDriverPhone = ride.driver.phone || "";
+
+                    if (ride.status === "accepted") {
+                        badgeEl.textContent = "Driver accepted & on the way";
+                        badgeEl.style.background = "#d4edda";
+                        badgeEl.style.color = "#155724";
+                    } else {
+                        badgeEl.textContent = "Trip in progress";
+                        badgeEl.style.background = "#cce5ff";
+                        badgeEl.style.color = "#004085";
                     }
                 } else if (ride.status === "completed") {
                     badgeEl.textContent = "Trip completed";
                     badgeEl.style.background = "#e2e3e5";
                     badgeEl.style.color = "#383d41";
+                    driverNameEl.textContent = ride.driver ? ride.driver.name || "Driver" : "Completed";
+                    driverVehicleEl.textContent = ride.driver ? (ride.driver.vehicle_model || "Sedan") + " · " + (ride.driver.license_plate || "TN-01-AB-1234") : "—";
+                    driverRatingEl.textContent = ride.driver ? (ride.driver.rating || "5.0") + " ★" : "—";
+                    assignedDriverPhone = ride.driver ? ride.driver.phone || "" : "";
+                } else {
+                    badgeEl.textContent = ride.status.charAt(0).toUpperCase() + ride.status.slice(1);
+                    badgeEl.style.background = "#e2e3e5";
+                    badgeEl.style.color = "#383d41";
                 }
             }
 
+            // ---------- Load active ride (with logging) ----------
             function loadActiveRide() {
                 api('/api/rides/active')
                     .then(function (data) {
+                        console.log('📡 Active ride response:', data);
+                        // data.ride contains the ride object with driver (if accepted)
                         updateRideUI(data.ride);
                     })
-                    .catch(function () {
+                    .catch(function (err) {
+                        console.warn('Failed to load active ride:', err);
                         updateRideUI(null);
                     });
             }
 
+            // ---------- Load history ----------
             function loadHistory() {
                 api('/api/rides/history')
                     .then(function (data) {
@@ -584,6 +469,7 @@
                     .catch(function () {});
             }
 
+            // ---------- Geolocation ----------
             function fetchGeoLocation() {
                 if (!navigator.geolocation) return;
                 navigator.geolocation.getCurrentPosition(
@@ -597,37 +483,43 @@
                 );
             }
 
+            // ---------- Initial loads ----------
             fetchGeoLocation();
             loadActiveRide();
             loadHistory();
 
+            // ---------- Socket.IO ----------
             var socket = window.io && io(apiBase, { withCredentials: true });
             if (socket) {
                 socket.on('connect', function () {
-                    console.log('Rider connected to socket');
+                    console.log('✅ Rider socket connected');
                 });
+
                 socket.on('ride_updated', function (payload) {
-                    console.log('Live ride update received:', payload);
-                    updateRideUI(payload);
+                    console.log('🔔 Socket ride_updated payload:', payload);
+                    // Do NOT trust the payload – always fetch fresh from server
+                    loadActiveRide();
                     loadHistory();
                 });
+
                 socket.on('driver_location', function (data) {
-                    console.log('Driver location update:', data);
+                    console.log('📍 Driver location update:', data);
                     if (data.location && data.location.coordinates) {
                         var lat = data.location.coordinates[1];
                         var lng = data.location.coordinates[0];
                         updateDriverMarker(lat, lng);
                     }
                 });
+            } else {
+                console.warn('Socket.IO not loaded – falling back to polling only');
             }
 
+            // ---------- Periodic polling (unconditional) ----------
             setInterval(function () {
-                if (currentActiveRide && currentActiveRide.status !== "completed" && currentActiveRide.status !== "cancelled") {
-                    loadActiveRide();
-                }
+                loadActiveRide();
             }, 8000);
 
-        }());
+        })();
     </script>
 </body>
 
