@@ -10,7 +10,6 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
   <style>
-    /* ========== Styles (unchanged, but added .ride-list) ========== */
     :root { --ink: #1B1B1F; --ink-soft: #54555C; --paper: #FAF6EE; --paper-raised: #FFFFFF; --marigold: #E8A33D; --marigold-dark: #C9832A; --green: #1E7A4C; --green-dark: #155C39; --red: #C0392B; --border: #E3DCCB; --radius-md: 14px; --radius-lg: 22px; --shadow: rgba(27,27,31,.10); }
     * { box-sizing: border-box; margin:0; padding:0; }
     [hidden] { display: none !important; }
@@ -49,6 +48,7 @@
     .ride-item .info strong { display:block; }
     .ride-item .info .dist { font-size:12px; color:var(--ink-soft); }
     .ride-item .accept-btn { margin-left:8px; }
+    .btn:disabled { opacity:0.6; pointer-events:none; }
     @media(max-width:850px) { .grid { grid-template-columns:1fr; } .nav { align-items:flex-start; gap:12px; flex-direction:column; } }
   </style>
 </head>
@@ -86,7 +86,6 @@
           </div>
         </div>
 
-        <!-- ===== AVAILABLE RIDES LIST ===== -->
         <div style="margin-top:22px; border-top:1px solid var(--border); padding-top:16px;">
           <div style="display:flex; justify-content:space-between; align-items:center;">
             <h2 style="font-size:18px;">Available Rides</h2>
@@ -115,7 +114,6 @@
     </section>
   </main>
 
-  <!-- Leaflet & Socket.IO -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
@@ -124,7 +122,6 @@
     (function(){
       "use strict";
 
-      // ---------- Helpers ----------
       function showMessage(message, type) {
         var toast = document.createElement("div");
         var closeButton = document.createElement("button");
@@ -145,7 +142,6 @@
         return (meters / 1000).toFixed(1) + ' km';
       }
 
-      // ---------- Session ----------
       var session = null;
       try { session = JSON.parse(localStorage.getItem('ranicab-session') || 'null'); } catch(e) {}
       if (!session || session.role !== 'driver') { window.location.href = '/'; return; }
@@ -154,7 +150,6 @@
       var isOnline = false, currentRide = null, assignedRiderPhone = "", locationInterval = null;
       var driverLng = 78.1198, driverLat = 9.9252;
 
-      // ---------- MAP ----------
       var map = L.map('driverMap').setView([driverLat, driverLng], 14);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' }).addTo(map);
 
@@ -222,13 +217,11 @@
         if (!currentRide || currentRide.status === 'requested') map.panTo([lat, lng], { animate: true });
       }
 
-      // ---------- API ----------
       function api(path, options) {
         return fetch(apiBase + path, Object.assign({ credentials: "include", headers: { "Content-Type": "application/json" } }, options || {}))
           .then(function(res){ return res.json().then(function(body){ if(!res.ok) throw new Error(body.error || "Request failed"); return body; }); });
       }
 
-      // ---------- DOM refs ----------
       var onlineToggle = document.getElementById('onlineToggle');
       var badgeEl = document.getElementById('driverStatusBadge');
       var pickupEl = document.getElementById('driverPickup');
@@ -246,7 +239,6 @@
       var ridesListEl = document.getElementById('ridesList');
       var refreshRidesBtn = document.getElementById('refreshRidesBtn');
 
-      // ---------- Online toggle ----------
       function updateOnlineUI(status) {
         isOnline = !!status;
         if (isOnline) {
@@ -275,13 +267,11 @@
           .catch(function(err){ showMessage("Status update failed: " + err.message, "error"); });
       });
 
-      // ---------- Buttons ----------
       callRiderBtn.addEventListener('click', function(){
         if (assignedRiderPhone) window.location.href = "tel:" + assignedRiderPhone;
         else showMessage("Rider contact is not available for this trip.", "error");
       });
 
-      // *** UPDATED: Cancel button for drivers – uses unassign endpoint ***
       cancelRideBtn.addEventListener('click', function(){
         if (!currentRide) return;
         if (currentRide.status !== 'accepted') {
@@ -293,11 +283,10 @@
         api('/api/rides/' + currentRide.id + '/unassign', { method: 'POST' })
           .then(function(){
             showMessage("You have dropped this ride. It is now available for other drivers.", "success");
-            // Refresh active ride (should become null)
             api('/api/rides/active')
               .then(function(act){ displayRide(act.ride); })
               .catch(function(){ displayRide(null); });
-            fetchAvailableRides(); // Refresh the list
+            fetchAvailableRides();
           })
           .catch(function(err){
             showMessage("Could not unassign: " + err.message, "error");
@@ -327,15 +316,14 @@
 
       completeRideBtn.addEventListener('click', function(){
         if (!currentRide) return;
-        if (!confirm("Complete this ride? Payment will be processed.")) return;
+        if (!confirm("Complete this ride? An OTP will be sent to the rider for verification.")) return;
         completeRideBtn.disabled = true;
-        api('/api/rides/' + currentRide.id + '/complete', { method: 'POST', body: JSON.stringify({ fare: currentRide.fare }) })
-          .then(function(){ showMessage("Trip completed! Payment recorded.", "success"); currentRide = null; displayRide(null); loadPerformance(); fetchAvailableRides(); })
+        api('/api/rides/' + currentRide.id + '/complete', { method: 'POST' })
+          .then(function(res){ showMessage("OTP sent to rider. Waiting for verification.", "success"); displayRide(res.ride); })
           .catch(function(err){ showMessage("Could not complete trip: " + err.message, "error"); })
           .finally(function(){ completeRideBtn.disabled = false; });
       });
 
-      // ---------- Display ride (main UI) ----------
       function displayRide(ride) {
         currentRide = ride;
         acceptRideBtn.style.display = "none";
@@ -382,6 +370,15 @@
           badgeEl.style.color = "#004085";
           completeRideBtn.style.display = "inline-flex";
           cancelRideBtn.style.display = "none";
+        } else if (ride.status === "pending_completion") {
+          badgeEl.textContent = "Waiting for rider OTP verification";
+          badgeEl.style.background = "#fff3cd";
+          badgeEl.style.color = "#856404";
+          // disable actions
+          acceptRideBtn.style.display = "none";
+          startRideBtn.style.display = "none";
+          completeRideBtn.style.display = "none";
+          cancelRideBtn.style.display = "none";
         } else if (ride.status === "completed") {
           badgeEl.textContent = "Completed";
           badgeEl.style.background = "#e2e3e5";
@@ -389,14 +386,12 @@
         }
       }
 
-      // ---------- Available rides list ----------
       function fetchAvailableRides() {
         if (!isOnline) {
           ridesListEl.innerHTML = '<p class="muted">Go online to see available rides.</p>';
           return;
         }
-        // Check active ride first: if we have an active ride, we don't need to show available
-        if (currentRide && (currentRide.status === 'accepted' || currentRide.status === 'ongoing')) {
+        if (currentRide && (currentRide.status === 'accepted' || currentRide.status === 'ongoing' || currentRide.status === 'pending_completion')) {
           ridesListEl.innerHTML = '<p class="muted">You have an active ride. Complete or cancel it first.</p>';
           return;
         }
@@ -404,8 +399,7 @@
         api('/api/rides/available')
           .then(function(data){
             var rides = data.rides || [];
-            // Filter by distance: only show rides within 50 km (adjustable)
-            var maxDistanceM = 50 * 1000; // 50 km
+            var maxDistanceM = 50 * 1000;
             var nearRides = rides.filter(function(r){
               var pickupCoords = r.pickup_location && r.pickup_location.coordinates;
               if (!pickupCoords) return false;
@@ -415,7 +409,6 @@
               return dist <= maxDistanceM;
             });
 
-            // Sort by distance
             nearRides.sort(function(a,b){
               var aCoords = a.pickup_location.coordinates;
               var bCoords = b.pickup_location.coordinates;
@@ -448,14 +441,11 @@
             });
             ridesListEl.innerHTML = html;
 
-            // Attach accept handlers
             ridesListEl.querySelectorAll('.accept-btn').forEach(function(btn){
               btn.addEventListener('click', function(){
                 var rideId = btn.getAttribute('data-ride-id');
-                // Find the ride object
                 var ride = nearRides.find(function(r){ return r.id === rideId; });
                 if (!ride) return;
-                // Accept this ride
                 btn.disabled = true;
                 btn.textContent = 'Accepting...';
                 api('/api/rides/' + rideId + '/accept', { method: 'POST' })
@@ -478,10 +468,8 @@
           });
       }
 
-      // Refresh button
       refreshRidesBtn.addEventListener('click', function(){ fetchAvailableRides(); });
 
-      // ---------- Performance ----------
       function loadPerformance() {
         api('/api/driver/performance')
           .then(function(data){
@@ -499,7 +487,6 @@
           }).catch(function(){});
       }
 
-      // ---------- Location ----------
       function fetchGeoLocation(callback) {
         if (!navigator.geolocation) { if(callback) callback(false); return; }
         navigator.geolocation.getCurrentPosition(
@@ -530,12 +517,10 @@
       function startLocationBroadcast(){ stopLocationBroadcast(); emitLocation(); locationInterval = setInterval(emitLocation, 5000); }
       function stopLocationBroadcast(){ if(locationInterval){ clearInterval(locationInterval); locationInterval = null; } }
 
-      // ---------- Logout ----------
       document.getElementById('logoutButton').addEventListener('click', function(){
         api('/api/auth/logout', { method: 'POST' }).catch(function(){}).finally(function(){ localStorage.removeItem('ranicab-session'); window.location.href = '/'; });
       });
 
-      // ---------- Init ----------
       fetchGeoLocation();
 
       api('/api/auth/me')
@@ -550,7 +535,6 @@
               }
             }
           }
-          // Check for active ride
           api('/api/rides/active')
             .then(function(act){
               if (act && act.ride) {
@@ -564,18 +548,15 @@
           loadPerformance();
         }).catch(function(){ displayRide(null); if(isOnline) fetchAvailableRides(); loadPerformance(); });
 
-      // ---------- Socket ----------
       var socket = window.io && io(apiBase, { withCredentials: true });
       if (socket) {
         socket.on('connect', function(){ console.log('Driver connected to socket'); if(isOnline) emitLocation(); });
         socket.on('ride_request', function(payload){
           console.log('Incoming ride request via socket:', payload);
           if (isOnline && (!currentRide || currentRide.status === "requested")) {
-            // Refresh available rides list
             fetchAvailableRides();
-            // Optionally display it if no current ride and not accepted/ongoing
             if (!currentRide) {
-              displayRide(payload); // show it as the current request
+              displayRide(payload);
             }
           }
         });
@@ -584,19 +565,16 @@
           if (currentRide && currentRide.id === payload.id) {
             displayRide(payload);
           } else {
-            // Might be a new ride assigned to us? Refresh active.
             api('/api/rides/active').then(function(act){ if(act && act.ride) displayRide(act.ride); });
           }
           fetchAvailableRides();
         });
       }
 
-      // Periodic refresh of available rides (every 15s)
       setInterval(function(){
         if (isOnline && !currentRide) fetchAvailableRides();
       }, 15000);
 
-      // Also refresh active ride periodically
       setInterval(function(){
         if (currentRide && currentRide.status !== 'completed' && currentRide.status !== 'cancelled') {
           api('/api/rides/active')
@@ -605,7 +583,6 @@
         }
       }, 8000);
 
-      // Expose functions for debugging
       window.fetchAvailableRides = fetchAvailableRides;
     })();
   </script>

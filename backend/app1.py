@@ -113,7 +113,6 @@ if not settings.find_one({"type": "pricing"}):
     })
 
 ACTIVE_STATUSES = ["requested", "accepted", "ongoing"]
-ALLOWED_COMPLETION_STATUSES = ["pending_completion", "completed"]
 
 # Tamil Nadu city coordinates mapping
 TN_CITIES = {
@@ -242,28 +241,6 @@ def send_reset_otp(email, user, otp):
         </body></html>
     """
     return send_mail(email, "Your RaniCab password reset OTP", text_body, html_body)
-
-
-def send_completion_otp_email(rider_email, rider_name, otp):
-    subject = "RaniCab Trip Completion OTP"
-    text_body = f"Hi {rider_name},\n\nYour driver has completed your trip. Please enter this OTP in your app to confirm: {otp}\n\nThis OTP expires in 10 minutes.\n\nRaniCab"
-    html_body = f"""
-        <!doctype html>
-        <html><body style="margin:0;background:#faf6ee;color:#1b1b1f;font-family:Arial,sans-serif;">
-            <div style="max-width:560px;margin:32px auto;padding:0 20px;">
-                <div style="border-top:6px solid #e8a33d;background:#fff;padding:28px 30px;">
-                    <p style="margin:0 0 18px;color:#c9832a;font-size:12px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;">RaniCab</p>
-                    <h1 style="margin:0 0 12px;font-size:30px;line-height:1.1;">Trip Completion OTP</h1>
-                    <p style="margin:0 0 24px;color:#54555c;font-size:15px;line-height:1.6;">Hi {escape(rider_name)}, your driver has completed your ride. Use this OTP to confirm.</p>
-                    <div style="background:#fbe7c6;padding:18px;text-align:center;">
-                        <span style="font-size:32px;font-weight:bold;letter-spacing:8px;">{otp}</span>
-                    </div>
-                    <p style="margin:20px 0 0;color:#54555c;font-size:13px;line-height:1.6;">This OTP expires in 10 minutes. If you did not request this, please contact support.</p>
-                </div>
-            </div>
-        </body></html>
-    """
-    return send_mail(rider_email, subject, text_body, html_body)
 
 
 def create_or_update_google_user(profile, phone=""):
@@ -668,8 +645,10 @@ def request_ride():
     ride["_id"] = result.inserted_id
     payload = serialize(ride)
     
+    # Find online drivers
     nearby_drivers = list(drivers.find({"is_online": True}))
     
+    # Broadcast to all online drivers and the dedicated drivers channel
     socketio.emit("ride_request", payload, room="drivers")
     for d in nearby_drivers:
         socketio.emit("ride_request", payload, room=f"driver:{d['user_id']}")
@@ -695,14 +674,16 @@ def accept_ride(ride_id):
     if not driver:
         return jsonify({"error": "Driver profile not found"}), 404
 
+    # Build driver info from the logged-in driver user and driver profile
     driver_info = {
         "name": request.user.get("name", "Driver"),
         "phone": request.user.get("phone", ""),
-        "rating": driver.get("rating", 5.0),
+        "rating": request.user.get("rating", 5.0),
         "vehicle_model": driver.get("vehicle_model", "Sedan"),
         "license_plate": driver.get("license_plate", "TN-01-AB-1234"),
     }
 
+    # Update ride: set driver_id, status, and store driver_info directly in the ride document
     result = rides.update_one(
         {"_id": ride_oid, "status": "requested"},
         {
@@ -710,10 +691,9 @@ def accept_ride(ride_id):
                 "driver_id": request.user["_id"],
                 "status": "accepted",
                 "accepted_at": now(),
-                "driver_info": driver_info,
-                "rider_verified": False,
+                "driver_info": driver_info,      # store here for good
             },
-            "$unset": {"completion_otp_hash": "", "completion_otp_expires": ""},
+            "$unset": {"rider_verified": "", "completion_pending": "", "completion_otp": ""},
         }
     )
     if result.modified_count == 0:
@@ -721,10 +701,16 @@ def accept_ride(ride_id):
 
     ride = rides.find_one({"_id": ride_oid})
     payload = serialize(ride)
+
+    # Add driver to payload (already stored in ride, but we also add explicitly)
     payload["driver"] = driver_info
 
+    # Emit to the rider and to all drivers
     socketio.emit("ride_updated", payload, room=f"rider:{ride['rider_id']}")
     socketio.emit("ride_updated", payload, room="drivers")
+
+    # Optional debug log
+    app.logger.info(f"Ride {ride_id} accepted by driver {request.user['_id']}, driver_info: {driver_info}")
 
     return {"ride": payload, "driver": driver_info}
 
@@ -732,6 +718,7 @@ def accept_ride(ride_id):
 @app.post("/api/rides/<ride_id>/verify")
 @require_role("rider")
 def verify_driver(ride_id):
+    """Rider confirms the assigned driver before the trip may start."""
     ride_oid = oid(ride_id)
     if not ride_oid:
         return jsonify({"error": "Invalid ride ID"}), 400
@@ -772,6 +759,9 @@ def start_ride(ride_id):
         {"$set": {"status": "ongoing", "started_at": now()}}
     )
     ride = rides.find_one({"_id": ride_oid})
+    if not ride:
+        return jsonify({"error": "Ride not found"}), 404
+
     payload = serialize(ride)
     socketio.emit("ride_updated", payload, room=f"rider:{ride['rider_id']}")
     return {"ride": payload}
@@ -783,117 +773,21 @@ def complete_ride(ride_id):
     ride_oid = oid(ride_id)
     if not ride_oid:
         return jsonify({"error": "Invalid ride ID"}), 400
-
-    ride = rides.find_one({"_id": ride_oid, "driver_id": request.user["_id"], "status": "ongoing"})
-    if not ride:
+    
+    data = request.get_json(silent=True) or {}
+    existing_ride = rides.find_one({"_id": ride_oid, "driver_id": request.user["_id"]})
+    if not existing_ride:
         return jsonify({"error": "Ride not found or not assigned to you"}), 404
-
-    # Generate OTP and store hashed
-    otp = f"{secrets.randbelow(1000000):06d}"
-    otp_hash = generate_password_hash(otp)
-    expires_at = now() + timedelta(minutes=10)
-
+    
+    fare = float(data.get("fare") or existing_ride.get("fare") or 0)
     rides.update_one(
-        {"_id": ride_oid},
-        {"$set": {
-            "status": "pending_completion",
-            "completion_otp_hash": otp_hash,
-            "completion_otp_expires": expires_at,
-            "completed_at": now()  # tentative
-        }}
+        {"_id": ride_oid, "driver_id": request.user["_id"]},
+        {"$set": {"status": "completed", "fare": fare, "completed_at": now()}}
     )
-
-    rider = users.find_one({"_id": ride["rider_id"]})
-    if rider and rider.get("email"):
-        send_completion_otp_email(rider["email"], rider.get("name", "Rider"), otp)
-    else:
-        app.logger.warning(f"Rider email missing for ride {ride_id}, OTP not sent")
-
-    payload = serialize(rides.find_one({"_id": ride_oid}))
+    ride = rides.find_one({"_id": ride_oid})
+    payload = serialize(ride)
     socketio.emit("ride_updated", payload, room=f"rider:{ride['rider_id']}")
-    socketio.emit("ride_updated", payload, room="drivers")
-    return {"ride": payload, "message": "OTP sent to rider. Waiting for verification."}
-
-
-@app.post("/api/rides/<ride_id>/complete-verify")
-@require_role("rider")
-def complete_ride_verify(ride_id):
-    data = request.get_json(force=True) or {}
-    otp = data.get("otp", "").strip()
-    ride_oid = oid(ride_id)
-    if not ride_oid or not otp:
-        return jsonify({"error": "Invalid ride ID or missing OTP"}), 400
-
-    ride = rides.find_one({"_id": ride_oid, "rider_id": request.user["_id"], "status": "pending_completion"})
-    if not ride:
-        return jsonify({"error": "Ride not found or not awaiting OTP"}), 404
-
-    expires = ride.get("completion_otp_expires")
-    if expires and expires.tzinfo is None:
-        expires = expires.replace(tzinfo=timezone.utc)
-    if not expires or expires < datetime.now(timezone.utc):
-        return jsonify({"error": "OTP has expired. Please ask driver to regenerate."}), 400
-
-    if not check_password_hash(ride.get("completion_otp_hash", ""), otp):
-        return jsonify({"error": "Invalid OTP"}), 400
-
-    # Mark as completed
-    rides.update_one(
-        {"_id": ride_oid},
-        {"$set": {"status": "completed", "finalized_at": now()},
-         "$unset": {"completion_otp_hash": "", "completion_otp_expires": ""}}
-    )
-
-    payload = serialize(rides.find_one({"_id": ride_oid}))
-    socketio.emit("ride_updated", payload, room=f"rider:{ride['rider_id']}")
-    if ride.get("driver_id"):
-        socketio.emit("ride_updated", payload, room=f"driver:{ride['driver_id']}")
-    socketio.emit("ride_updated", payload, room="drivers")
-    return {"ride": payload, "message": "Trip completed successfully!"}
-
-
-@app.post("/api/rides/<ride_id>/rate")
-@require_role("rider")
-def rate_driver(ride_id):
-    data = request.get_json(force=True) or {}
-    rating = data.get("rating")
-    if rating is None or not (1 <= rating <= 5):
-        return jsonify({"error": "Rating must be between 1 and 5"}), 400
-
-    ride_oid = oid(ride_id)
-    if not ride_oid:
-        return jsonify({"error": "Invalid ride ID"}), 400
-
-    ride = rides.find_one({"_id": ride_oid, "rider_id": request.user["_id"], "status": "completed"})
-    if not ride:
-        return jsonify({"error": "Ride not found or not completed"}), 404
-
-    # Check if already rated
-    if ride.get("rider_rating") is not None:
-        return jsonify({"error": "You have already rated this ride"}), 400
-
-    # Update ride with rating
-    rides.update_one({"_id": ride_oid}, {"$set": {"rider_rating": rating}})
-
-    # Update driver's average rating
-    driver_id = ride["driver_id"]
-    if driver_id:
-        all_rides = list(rides.find({"driver_id": driver_id, "rider_rating": {"$exists": True}}))
-        ratings = [r.get("rider_rating") for r in all_rides if r.get("rider_rating") is not None]
-        if ratings:
-            avg = round(sum(ratings) / len(ratings), 1)
-            count = len(ratings)
-        else:
-            avg = 5.0
-            count = 0
-        drivers.update_one(
-            {"user_id": driver_id},
-            {"$set": {"rating": avg, "ratings_count": count}}
-        )
-
-    payload = serialize(rides.find_one({"_id": ride_oid}))
-    socketio.emit("ride_updated", payload, room=f"rider:{ride['rider_id']}")
-    return {"ride": payload, "message": "Thank you for your rating!"}
+    return {"ride": payload}
 
 
 @app.post("/api/rides/<ride_id>/unassign")
@@ -907,11 +801,12 @@ def unassign_ride(ride_id):
     if not ride:
         return jsonify({"error": "Ride not found, not assigned to you, or not in accepted state"}), 404
 
+    # Reset status and remove driver_id and driver_info
     rides.update_one(
         {"_id": ride_oid},
         {
-            "$set": {"status": "requested", "driver_id": None, "accepted_at": None, "rider_verified": False},
-            "$unset": {"driver_info": ""}
+            "$set": {"status": "requested", "driver_id": None, "accepted_at": None},
+            "$unset": {"driver_info": ""}   # remove stored driver info
         }
     )
 
@@ -942,6 +837,7 @@ def cancel_ride(ride_id):
 
     ride = rides.find_one({"_id": ride_oid})
     payload = serialize(ride)
+    # Notify all parties
     socketio.emit("ride_updated", payload, room=f"rider:{ride['rider_id']}")
     if ride.get("driver_id"):
         socketio.emit("ride_updated", payload, room=f"driver:{ride['driver_id']}")
@@ -953,29 +849,25 @@ def cancel_ride(ride_id):
 @require_role("rider", "driver")
 def active_ride():
     key = "rider_id" if request.user["role"] == "rider" else "driver_id"
-    active = rides.find_one(
-        {key: request.user["_id"], "status": {"$in": ACTIVE_STATUSES + ["pending_completion"]}},
-        sort=[("created_at", -1)]
-    )
+    active = rides.find_one({key: request.user["_id"], "status": {"$in": ACTIVE_STATUSES}}, sort=[("created_at", -1)])
     if not active:
         return {"ride": None}
 
     payload = serialize(active)
 
     if request.user["role"] == "rider" and active.get("driver_id"):
+        # First, try to use stored driver_info (if present)
         driver_info = active.get("driver_info")
         if driver_info:
-            # Ensure rating is up-to-date
-            driver_doc = drivers.find_one({"user_id": active["driver_id"]}) or {}
-            driver_info["rating"] = driver_doc.get("rating", 5.0)
             payload["driver"] = driver_info
         else:
+            # Fallback: look up driver user and profile (backward compatibility)
             driver_user = users.find_one({"_id": active["driver_id"]}) or {}
             driver_doc = drivers.find_one({"user_id": active["driver_id"]}) or {}
             payload["driver"] = {
                 "name": driver_user.get("name", "Driver"),
                 "phone": driver_user.get("phone", ""),
-                "rating": driver_doc.get("rating", 5.0),
+                "rating": driver_user.get("rating", 5.0),
                 "vehicle_model": driver_doc.get("vehicle_model", "Sedan"),
                 "license_plate": driver_doc.get("license_plate", "TN-01-AB-1234"),
             }
@@ -999,6 +891,7 @@ def ride_history():
     for r in history:
         doc = serialize(r)
         if request.user["role"] == "rider" and r.get("driver_id"):
+            # Try to get driver name from stored driver_info or fallback to user lookup
             if r.get("driver_info"):
                 doc["driver_name"] = r["driver_info"].get("name", "Driver")
             else:
@@ -1036,7 +929,7 @@ def driver_performance():
     today_rides = []
     by_day = {i: 0 for i in range(7)}
     for r in completed:
-        c_at = r.get("completed_at") or r.get("finalized_at")
+        c_at = r.get("completed_at")
         if c_at:
             if hasattr(c_at, "tzinfo") and c_at.tzinfo is not None:
                 c_at = c_at.replace(tzinfo=None)
@@ -1090,6 +983,23 @@ def driver_location_socket(data):
             {"ride_id": str(active["_id"]), "location": loc, "lat": lat, "lng": lng},
             room=f"rider:{active['rider_id']}"
         )
+
+
+# ============ STATIC ASSETS & FRONTEND PAGES ============
+
+@app.route("/")
+def serve_root():
+    return send_from_directory(FRONTEND_DIR, "index.html")
+
+
+@app.route("/frontend/<path:filename>")
+def serve_frontend_page(filename):
+    return send_from_directory(FRONTEND_DIR, filename)
+
+
+@app.route("/src/<path:filename>")
+def serve_src_assets(filename):
+    return send_from_directory(ASSETS_DIR, filename)
 
 
 if __name__ == "__main__":

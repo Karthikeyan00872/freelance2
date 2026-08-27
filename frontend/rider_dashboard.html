@@ -5,14 +5,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rani Cab — Rider Dashboard</title>
-    <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
     <style>
-        /* All styles unchanged – same as before */
         :root {
             --ink: #1B1B1F;
             --ink-soft: #54555C;
@@ -67,6 +65,7 @@
         .map { min-height: 430px; border-radius: var(--radius-lg); background: #e8e0d4; position: relative; overflow: hidden; }
         #riderMap { height: 430px; width: 100%; border-radius: var(--radius-lg); }
         .btn { display: inline-flex; padding: 14px 26px; border-radius: 999px; font-weight: 700; border: 0; background: var(--marigold); box-shadow: 0 6px 0 var(--marigold-dark); cursor: pointer; }
+        .btn:disabled { opacity: 0.6; pointer-events: none; }
         .badge { display: inline-flex; padding: 7px 12px; border-radius: 999px; background: #FBE7C6; color: var(--marigold-dark); font-weight: 700 }
         .list { display: grid; gap: 12px; margin-top: 14px }
         .row { display: flex; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border) }
@@ -74,13 +73,15 @@
         .chart { display: flex; align-items: end; gap: 10px; height: 160px; margin-top: 18px }
         .bar { flex: 1; background: var(--marigold); border-radius: 10px 10px 0 0; min-height: 28px }
         .muted { color: var(--ink-soft) }
+        .star-rating { font-size: 30px; cursor: pointer; display: flex; gap: 6px; }
+        .star-rating span { transition: color 0.2s; }
+        .star-rating span:hover { color: var(--marigold); }
+        .debug-json { background: #f0ede8; padding: 10px; border-radius: 8px; font-size: 12px; overflow: auto; max-height: 200px; margin-top: 10px; border: 1px solid var(--border); display: none; }
+        .debug-json.show { display: block; }
         @media(max-width:850px) {
             .grid { grid-template-columns: 1fr }
             .nav { align-items: flex-start; gap: 12px; flex-direction: column }
         }
-        /* Debug area */
-        .debug-json { background: #f0ede8; padding: 10px; border-radius: 8px; font-size: 12px; overflow: auto; max-height: 200px; margin-top: 10px; border: 1px solid var(--border); display: none; }
-        .debug-json.show { display: block; }
     </style>
 </head>
 
@@ -121,6 +122,35 @@
                     <div class="row"><span>Vehicle</span><strong id="driverVehicle">Model & plate</strong></div>
                     <div class="row"><span>Rating</span><strong id="driverRating">★★★★★</strong></div>
                 </div>
+
+                <!-- Verification button (shown when ride is accepted) -->
+                <div id="verifySection" style="display:none; margin-top:16px; border-top:1px solid var(--border); padding-top:16px;">
+                    <p>Please verify your driver before starting the trip.</p>
+                    <button class="btn" id="verifyDriverBtn" style="background:var(--green); color:#fff; box-shadow:0 6px 0 var(--green-dark);">Verify Driver</button>
+                </div>
+
+                <!-- OTP Section (shown when ride is pending_completion) -->
+                <div id="otpSection" style="display:none; margin-top:16px; border-top:1px solid var(--border); padding-top:16px;">
+                    <p>Enter the OTP sent to your email to confirm trip completion:</p>
+                    <div style="display:flex; gap:10px; align-items:center;">
+                        <input type="text" id="otpInput" placeholder="6-digit OTP" style="flex:1; padding:10px; border:1px solid var(--border); border-radius:8px; font-size:16px;">
+                        <button class="btn" id="verifyOtpBtn" style="background:var(--green); color:#fff; box-shadow:0 6px 0 var(--green-dark);">Verify OTP</button>
+                    </div>
+                </div>
+
+                <!-- Rating Section (shown after completion if not rated) -->
+                <div id="ratingSection" style="display:none; margin-top:16px; border-top:1px solid var(--border); padding-top:16px;">
+                    <p>How was your ride? Rate your driver:</p>
+                    <div class="star-rating" id="starContainer">
+                        <span data-value="1">☆</span>
+                        <span data-value="2">☆</span>
+                        <span data-value="3">☆</span>
+                        <span data-value="4">☆</span>
+                        <span data-value="5">☆</span>
+                    </div>
+                    <button class="btn" id="submitRatingBtn" style="margin-top:10px; background:var(--marigold);">Submit Rating</button>
+                </div>
+
                 <div style="display:flex; gap:10px; margin-top:18px; flex-wrap:wrap;">
                     <button class="btn" id="callDriverBtn" style="flex:1" type="button">Call Driver</button>
                     <button class="btn" id="cancelRideBtn" style="flex:1; background:var(--ink); color:#fff; box-shadow:0 6px 0 #000;" type="button">Cancel Ride</button>
@@ -137,7 +167,6 @@
         </section>
     </main>
 
-    <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
@@ -146,7 +175,6 @@
         (function () {
             "use strict";
 
-            // ---------- Toast ----------
             function showMessage(message, type) {
                 var toast = document.createElement("div");
                 var closeButton = document.createElement("button");
@@ -162,7 +190,6 @@
                 window.setTimeout(function () { if (toast.isConnected) toast.remove(); }, 4500);
             }
 
-            // ---------- Session ----------
             var session = null;
             try {
                 session = JSON.parse(localStorage.getItem('ranicab-session') || 'null');
@@ -176,11 +203,11 @@
             var apiBase = window.RANICAB_API_BASE || (window.location.port === '5000' ? window.location.origin : 'http://localhost:5000');
             var currentActiveRide = null;
             var assignedDriverPhone = "";
+            var selectedRating = 0;
 
             var riderLng = 78.1198;
             var riderLat = 9.9252;
 
-            // ---------- Leaflet Map (unchanged) ----------
             var map = L.map('riderMap').setView([riderLat, riderLng], 14);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -201,9 +228,7 @@
                 icon: L.divIcon({ html: '🏁', className: 'custom-marker', iconSize: [24, 24] })
             }).addTo(map).setOpacity(0);
 
-            // Leaflet markers have no getOpacity(); track visibility ourselves
             var driverVisible = false;
-
             var routeControl = null;
 
             function drawRoute(originLat, originLng, destLat, destLng) {
@@ -265,7 +290,6 @@
                 }
             }
 
-            // ---------- API helper ----------
             function api(path, options) {
                 return fetch(apiBase + path, Object.assign({
                     credentials: "include",
@@ -278,7 +302,6 @@
                 });
             }
 
-            // ---------- Logout ----------
             document.getElementById('logoutButton').addEventListener('click', function () {
                 api('/api/auth/logout', { method: 'POST' })
                     .catch(function () {})
@@ -288,7 +311,6 @@
                     });
             });
 
-            // ---------- DOM references ----------
             var badgeEl = document.getElementById('rideStatusBadge');
             var pickupEl = document.getElementById('pickup');
             var dropoffEl = document.getElementById('dropoff');
@@ -300,16 +322,78 @@
             var cancelRideBtn = document.getElementById('cancelRideBtn');
             var refreshBtn = document.getElementById('refreshBtn');
             var debugJson = document.getElementById('debugJson');
-            var toggleDebugBtn = document.getElementById('toggleDebugBtn');
 
-            if (toggleDebugBtn) {
-                toggleDebugBtn.addEventListener('click', function() {
-                    debugJson.classList.toggle('show');
-                    toggleDebugBtn.textContent = debugJson.classList.contains('show') ? 'Hide raw data' : 'Show raw ride data';
-                });
-            }
+            var verifySection = document.getElementById('verifySection');
+            var verifyDriverBtn = document.getElementById('verifyDriverBtn');
+            var otpSection = document.getElementById('otpSection');
+            var otpInput = document.getElementById('otpInput');
+            var verifyOtpBtn = document.getElementById('verifyOtpBtn');
+            var ratingSection = document.getElementById('ratingSection');
+            var starContainer = document.getElementById('starContainer');
+            var submitRatingBtn = document.getElementById('submitRatingBtn');
 
-            // ---------- Call & Cancel ----------
+            // Star rating handler
+            starContainer.addEventListener('click', function(e) {
+                if (e.target.dataset.value) {
+                    selectedRating = parseInt(e.target.dataset.value);
+                    var stars = starContainer.querySelectorAll('span');
+                    stars.forEach(function(star, idx) {
+                        star.textContent = idx < selectedRating ? '★' : '☆';
+                    });
+                }
+            });
+
+            // Verify driver
+            verifyDriverBtn.addEventListener('click', function() {
+                if (!currentActiveRide) return;
+                verifyDriverBtn.disabled = true;
+                api('/api/rides/' + currentActiveRide.id + '/verify', { method: 'POST' })
+                    .then(function(res) {
+                        showMessage("Driver verified! You can now start the trip.", "success");
+                        loadActiveRide();
+                    })
+                    .catch(function(err) { showMessage("Verification failed: " + err.message, "error"); })
+                    .finally(function() { verifyDriverBtn.disabled = false; });
+            });
+
+            // Verify OTP
+            verifyOtpBtn.addEventListener('click', function() {
+                var otp = otpInput.value.trim();
+                if (!otp) { showMessage("Please enter the OTP.", "error"); return; }
+                if (!currentActiveRide) return;
+                verifyOtpBtn.disabled = true;
+                api('/api/rides/' + currentActiveRide.id + '/complete-verify', {
+                    method: 'POST',
+                    body: JSON.stringify({ otp: otp })
+                })
+                .then(function(res) {
+                    showMessage("Trip completed! Please rate your driver.", "success");
+                    loadActiveRide();
+                    loadHistory();
+                })
+                .catch(function(err) { showMessage("OTP verification failed: " + err.message, "error"); })
+                .finally(function() { verifyOtpBtn.disabled = false; });
+            });
+
+            // Submit rating
+            submitRatingBtn.addEventListener('click', function() {
+                if (selectedRating === 0) { showMessage("Please select a rating.", "error"); return; }
+                if (!currentActiveRide) return;
+                submitRatingBtn.disabled = true;
+                api('/api/rides/' + currentActiveRide.id + '/rate', {
+                    method: 'POST',
+                    body: JSON.stringify({ rating: selectedRating })
+                })
+                .then(function(res) {
+                    showMessage("Thank you for your rating!", "success");
+                    ratingSection.style.display = 'none';
+                    loadActiveRide();
+                    loadHistory();
+                })
+                .catch(function(err) { showMessage("Could not submit rating: " + err.message, "error"); })
+                .finally(function() { submitRatingBtn.disabled = false; });
+            });
+
             callDriverBtn.addEventListener('click', function () {
                 if (assignedDriverPhone) {
                     window.location.href = "tel:" + assignedDriverPhone;
@@ -338,13 +422,15 @@
                 showMessage("Refreshed ride data", "success");
             });
 
-            // ---------- Core UI update ----------
             function updateRideUI(ride) {
                 console.log('🔄 updateRideUI called with ride:', ride);
                 currentActiveRide = ride;
-
-                // Show raw data in debug panel
                 debugJson.textContent = JSON.stringify(ride, null, 2);
+
+                // Hide all dynamic sections
+                verifySection.style.display = 'none';
+                otpSection.style.display = 'none';
+                ratingSection.style.display = 'none';
 
                 if (!ride) {
                     badgeEl.textContent = "No active ride";
@@ -380,7 +466,6 @@
 
                 updateRideMarkers(ride);
 
-                // ---------- Status & Driver info ----------
                 if (ride.status === "requested") {
                     badgeEl.textContent = "Searching for a driver...";
                     badgeEl.style.background = "#FBE7C6";
@@ -391,39 +476,76 @@
                     assignedDriverPhone = "";
                     driverMarker.setOpacity(0);
                     driverVisible = false;
-                } else if (ride.status === "accepted" || ride.status === "ongoing") {
-                    // ---- CRITICAL: check for driver object ----
+                } else if (ride.status === "accepted") {
+                    // Show driver info and verify button
                     if (ride.driver) {
-                        console.log('✅ Driver object found:', ride.driver);
                         driverNameEl.textContent = ride.driver.name || "Driver";
                         driverVehicleEl.textContent = (ride.driver.vehicle_model || "Sedan") + " · " + (ride.driver.license_plate || "TN-01-AB-1234");
                         driverRatingEl.textContent = (ride.driver.rating || "5.0") + " ★";
                         assignedDriverPhone = ride.driver.phone || "";
                     } else {
-                        console.warn('⚠️ ride.driver is missing!');
                         driverNameEl.textContent = "Driver assigned (loading details...)";
                         driverVehicleEl.textContent = "Please refresh";
                         driverRatingEl.textContent = "—";
                         assignedDriverPhone = "";
                     }
-
-                    if (ride.status === "accepted") {
-                        badgeEl.textContent = "Driver accepted & on the way";
-                        badgeEl.style.background = "#d4edda";
-                        badgeEl.style.color = "#155724";
-                    } else {
-                        badgeEl.textContent = "Trip in progress";
-                        badgeEl.style.background = "#cce5ff";
-                        badgeEl.style.color = "#004085";
+                    badgeEl.textContent = "Driver accepted – please verify";
+                    badgeEl.style.background = "#d4edda";
+                    badgeEl.style.color = "#155724";
+                    // Show verification button only if not already verified
+                    if (!ride.rider_verified) {
+                        verifySection.style.display = 'block';
                     }
+                } else if (ride.status === "ongoing") {
+                    if (ride.driver) {
+                        driverNameEl.textContent = ride.driver.name || "Driver";
+                        driverVehicleEl.textContent = (ride.driver.vehicle_model || "Sedan") + " · " + (ride.driver.license_plate || "TN-01-AB-1234");
+                        driverRatingEl.textContent = (ride.driver.rating || "5.0") + " ★";
+                        assignedDriverPhone = ride.driver.phone || "";
+                    } else {
+                        driverNameEl.textContent = "Driver on trip";
+                        driverVehicleEl.textContent = "—";
+                        driverRatingEl.textContent = "—";
+                        assignedDriverPhone = "";
+                    }
+                    badgeEl.textContent = "Trip in progress";
+                    badgeEl.style.background = "#cce5ff";
+                    badgeEl.style.color = "#004085";
+                } else if (ride.status === "pending_completion") {
+                    if (ride.driver) {
+                        driverNameEl.textContent = ride.driver.name || "Driver";
+                        driverVehicleEl.textContent = (ride.driver.vehicle_model || "Sedan") + " · " + (ride.driver.license_plate || "TN-01-AB-1234");
+                        driverRatingEl.textContent = (ride.driver.rating || "5.0") + " ★";
+                        assignedDriverPhone = ride.driver.phone || "";
+                    } else {
+                        driverNameEl.textContent = "Driver completed trip";
+                        driverVehicleEl.textContent = "—";
+                        driverRatingEl.textContent = "—";
+                        assignedDriverPhone = "";
+                    }
+                    badgeEl.textContent = "Trip pending – verify OTP to complete";
+                    badgeEl.style.background = "#fff3cd";
+                    badgeEl.style.color = "#856404";
+                    otpSection.style.display = 'block';
                 } else if (ride.status === "completed") {
+                    if (ride.driver) {
+                        driverNameEl.textContent = ride.driver.name || "Driver";
+                        driverVehicleEl.textContent = (ride.driver.vehicle_model || "Sedan") + " · " + (ride.driver.license_plate || "TN-01-AB-1234");
+                        driverRatingEl.textContent = (ride.driver.rating || "5.0") + " ★";
+                        assignedDriverPhone = ride.driver.phone || "";
+                    } else {
+                        driverNameEl.textContent = "Trip completed";
+                        driverVehicleEl.textContent = "—";
+                        driverRatingEl.textContent = "—";
+                        assignedDriverPhone = "";
+                    }
                     badgeEl.textContent = "Trip completed";
                     badgeEl.style.background = "#e2e3e5";
                     badgeEl.style.color = "#383d41";
-                    driverNameEl.textContent = ride.driver ? ride.driver.name || "Driver" : "Completed";
-                    driverVehicleEl.textContent = ride.driver ? (ride.driver.vehicle_model || "Sedan") + " · " + (ride.driver.license_plate || "TN-01-AB-1234") : "—";
-                    driverRatingEl.textContent = ride.driver ? (ride.driver.rating || "5.0") + " ★" : "—";
-                    assignedDriverPhone = ride.driver ? ride.driver.phone || "" : "";
+                    // Show rating if not rated yet
+                    if (ride.rider_rating === undefined || ride.rider_rating === null) {
+                        ratingSection.style.display = 'block';
+                    }
                 } else {
                     badgeEl.textContent = ride.status.charAt(0).toUpperCase() + ride.status.slice(1);
                     badgeEl.style.background = "#e2e3e5";
@@ -431,12 +553,10 @@
                 }
             }
 
-            // ---------- Load active ride (with logging) ----------
             function loadActiveRide() {
                 api('/api/rides/active')
                     .then(function (data) {
                         console.log('📡 Active ride response:', data);
-                        // data.ride contains the ride object with driver (if accepted)
                         updateRideUI(data.ride);
                     })
                     .catch(function (err) {
@@ -445,7 +565,6 @@
                     });
             }
 
-            // ---------- Load history ----------
             function loadHistory() {
                 api('/api/rides/history')
                     .then(function (data) {
@@ -469,7 +588,6 @@
                     .catch(function () {});
             }
 
-            // ---------- Geolocation ----------
             function fetchGeoLocation() {
                 if (!navigator.geolocation) return;
                 navigator.geolocation.getCurrentPosition(
@@ -483,12 +601,10 @@
                 );
             }
 
-            // ---------- Initial loads ----------
             fetchGeoLocation();
             loadActiveRide();
             loadHistory();
 
-            // ---------- Socket.IO ----------
             var socket = window.io && io(apiBase, { withCredentials: true });
             if (socket) {
                 socket.on('connect', function () {
@@ -497,7 +613,6 @@
 
                 socket.on('ride_updated', function (payload) {
                     console.log('🔔 Socket ride_updated payload:', payload);
-                    // Do NOT trust the payload – always fetch fresh from server
                     loadActiveRide();
                     loadHistory();
                 });
@@ -514,7 +629,6 @@
                 console.warn('Socket.IO not loaded – falling back to polling only');
             }
 
-            // ---------- Periodic polling (unconditional) ----------
             setInterval(function () {
                 loadActiveRide();
             }, 8000);
@@ -522,5 +636,4 @@
         })();
     </script>
 </body>
-
 </html>
