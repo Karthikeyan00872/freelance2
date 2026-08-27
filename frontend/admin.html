@@ -37,6 +37,20 @@
             display: none !important;
         }
 
+        .message-toast {
+            position: fixed; top: 24px; right: 24px; z-index: 2000;
+            display: flex; align-items: flex-start; gap: 14px;
+            width: min(380px, calc(100vw - 32px)); padding: 16px 18px;
+            background: var(--paper-raised); border: 1px solid var(--border);
+            border-left: 5px solid var(--marigold); border-radius: var(--radius-md);
+            box-shadow: 0 14px 32px var(--shadow); font-weight: 600;
+            animation: toast-in .2s ease-out;
+        }
+        .message-toast.error { border-left-color: var(--red); }
+        .message-toast.success { border-left-color: var(--green); }
+        .message-toast button { flex: 0 0 auto; border: 0; background: transparent; color: var(--ink-soft); font-size: 20px; line-height: 1; cursor: pointer; }
+        @keyframes toast-in { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
         body {
             font-family: 'Work Sans', sans-serif;
             background: var(--paper);
@@ -353,6 +367,21 @@
         (function () {
             "use strict";
 
+            function showMessage(message, type) {
+                var toast = document.createElement("div");
+                var closeButton = document.createElement("button");
+                toast.className = "message-toast " + (type || "");
+                toast.setAttribute("role", "status");
+                toast.appendChild(document.createTextNode(message));
+                closeButton.type = "button";
+                closeButton.setAttribute("aria-label", "Close message");
+                closeButton.textContent = "×";
+                closeButton.addEventListener("click", function () { toast.remove(); });
+                toast.appendChild(closeButton);
+                document.body.appendChild(toast);
+                window.setTimeout(function () { if (toast.isConnected) toast.remove(); }, 4500);
+            }
+
             var apiBase = window.RANICAB_API_BASE || (window.location.port === '5000' ? window.location.origin : 'http://localhost:5000');
 
             function api(path, options) {
@@ -498,7 +527,7 @@
                     document.getElementById('credPassword').textContent = res.credentials.password;
                     regSuccessBox.style.display = 'block';
                 }).catch(function (err) {
-                    alert('Error creating driver: ' + err.message);
+                    showMessage('Error creating driver: ' + err.message, "error");
                 });
             });
 
@@ -525,13 +554,13 @@
                     method: 'POST',
                     body: JSON.stringify(payload)
                 }).then(function (res) {
-                    alert('Settings updated successfully');
+                    showMessage('Settings updated successfully', "success");
                     settingsForm.style.display = 'none';
                     settingsView.style.display = 'grid';
                     editSettingsBtn.style.display = 'inline-flex';
                     checkAdminAuth();
                 }).catch(function (err) {
-                    alert('Could not update settings: ' + err.message);
+                    showMessage('Could not update settings: ' + err.message, "error");
                 });
             });
 

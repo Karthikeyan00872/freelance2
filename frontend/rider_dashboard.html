@@ -42,6 +42,42 @@
             display: none !important;
         }
 
+        .message-toast {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            z-index: 2000;
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            width: min(380px, calc(100vw - 32px));
+            padding: 16px 18px;
+            background: var(--paper-raised);
+            border: 1px solid var(--border);
+            border-left: 5px solid var(--marigold);
+            border-radius: var(--radius-md);
+            box-shadow: 0 14px 32px var(--shadow);
+            font-weight: 600;
+            animation: toast-in .2s ease-out;
+        }
+
+        .message-toast.error { border-left-color: var(--red); }
+        .message-toast.success { border-left-color: var(--green); }
+        .message-toast button {
+            flex: 0 0 auto;
+            border: 0;
+            background: transparent;
+            color: var(--ink-soft);
+            font-size: 20px;
+            line-height: 1;
+            cursor: pointer;
+        }
+
+        @keyframes toast-in {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
         body {
             font-family: 'Work Sans', sans-serif;
             background: var(--paper);
@@ -246,6 +282,21 @@
         (function () {
             "use strict";
 
+            function showMessage(message, type) {
+                var toast = document.createElement("div");
+                var closeButton = document.createElement("button");
+                toast.className = "message-toast " + (type || "");
+                toast.setAttribute("role", "status");
+                toast.appendChild(document.createTextNode(message));
+                closeButton.type = "button";
+                closeButton.setAttribute("aria-label", "Close message");
+                closeButton.textContent = "×";
+                closeButton.addEventListener("click", function () { toast.remove(); });
+                toast.appendChild(closeButton);
+                document.body.appendChild(toast);
+                window.setTimeout(function () { if (toast.isConnected) toast.remove(); }, 4500);
+            }
+
             var session = null;
             try {
                 session = JSON.parse(localStorage.getItem('ranicab-session') || 'null');
@@ -271,12 +322,12 @@
 
             // Rider marker (own position)
             var riderMarker = L.marker([riderLat, riderLng], {
-                icon: L.divIcon({ html: '🧑', className: 'custom-marker', iconSize: [30, 30] })
+                icon: L.divIcon({ html: '🧑YOU', className: 'custom-marker', iconSize: [30, 30] })
             }).addTo(map).bindPopup('You');
 
             // Driver marker (initially hidden)
             var driverMarker = L.marker([0, 0], {
-                icon: L.divIcon({ html: '🚕', className: 'custom-marker', iconSize: [30, 30] })
+                icon: L.divIcon({ html: '🚕DRIVER', className: 'custom-marker', iconSize: [30, 30] })
             }).addTo(map).setOpacity(0);
 
             // Pickup and dropoff markers (hidden initially)
@@ -403,13 +454,13 @@
                 if (assignedDriverPhone) {
                     window.location.href = "tel:" + assignedDriverPhone;
                 } else {
-                    alert("A driver has not accepted this ride yet.");
+                    showMessage("A driver has not accepted this ride yet.", "error");
                 }
             });
 
             cancelRideBtn.addEventListener('click', function () {
                 if (!currentActiveRide) {
-                    alert("No active ride to cancel.");
+                    showMessage("No active ride to cancel.", "error");
                     return;
                 }
                 if (!confirm("Are you sure you want to cancel this ride?")) return;
@@ -417,12 +468,12 @@
                 cancelRideBtn.disabled = true;
                 api('/api/rides/' + currentActiveRide.id + '/cancel', { method: 'POST' })
                     .then(function () {
-                        alert("Ride cancelled.");
+                        showMessage("Ride cancelled.", "success");
                         loadActiveRide();
                         loadHistory();
                     })
                     .catch(function (err) {
-                        alert("Could not cancel ride: " + err.message);
+                        showMessage("Could not cancel ride: " + err.message, "error");
                     })
                     .finally(function () {
                         cancelRideBtn.disabled = false;
@@ -455,7 +506,7 @@
                 callDriverBtn.textContent = "Call Driver";
                 callDriverBtn.onclick = function () {
                     if (assignedDriverPhone) window.location.href = "tel:" + assignedDriverPhone;
-                    else alert("Driver not yet assigned.");
+                    else showMessage("Driver not yet assigned.", "error");
                 };
 
                 pickupEl.textContent = ride.pickup_address || "Pickup location";

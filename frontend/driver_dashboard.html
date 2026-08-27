@@ -42,6 +42,20 @@
             display: none !important;
         }
 
+        .message-toast {
+            position: fixed; top: 24px; right: 24px; z-index: 2000;
+            display: flex; align-items: flex-start; gap: 14px;
+            width: min(380px, calc(100vw - 32px)); padding: 16px 18px;
+            background: var(--paper-raised); border: 1px solid var(--border);
+            border-left: 5px solid var(--marigold); border-radius: var(--radius-md);
+            box-shadow: 0 14px 32px var(--shadow); font-weight: 600;
+            animation: toast-in .2s ease-out;
+        }
+        .message-toast.error { border-left-color: var(--red); }
+        .message-toast.success { border-left-color: var(--green); }
+        .message-toast button { flex: 0 0 auto; border: 0; background: transparent; color: var(--ink-soft); font-size: 20px; line-height: 1; cursor: pointer; }
+        @keyframes toast-in { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
         body {
             font-family: 'Work Sans', sans-serif;
             background: var(--paper);
@@ -262,6 +276,21 @@
         (function () {
             "use strict";
 
+            function showMessage(message, type) {
+                var toast = document.createElement("div");
+                var closeButton = document.createElement("button");
+                toast.className = "message-toast " + (type || "");
+                toast.setAttribute("role", "status");
+                toast.appendChild(document.createTextNode(message));
+                closeButton.type = "button";
+                closeButton.setAttribute("aria-label", "Close message");
+                closeButton.textContent = "×";
+                closeButton.addEventListener("click", function () { toast.remove(); });
+                toast.appendChild(closeButton);
+                document.body.appendChild(toast);
+                window.setTimeout(function () { if (toast.isConnected) toast.remove(); }, 4500);
+            }
+
             var session = null;
             try {
                 session = JSON.parse(localStorage.getItem('ranicab-session') || 'null');
@@ -445,7 +474,7 @@
                         checkForRequests();
                     }
                 }).catch(function (err) {
-                    alert("Status update failed: " + err.message);
+                    showMessage("Status update failed: " + err.message, "error");
                 });
             });
 
@@ -453,7 +482,7 @@
                 if (assignedRiderPhone) {
                     window.location.href = "tel:" + assignedRiderPhone;
                 } else {
-                    alert("Rider contact is not available for this trip.");
+                        showMessage("Rider contact is not available for this trip.", "error");
                 }
             });
 
@@ -462,11 +491,11 @@
                 acceptRideBtn.disabled = true;
                 api('/api/rides/' + currentRide.id + '/accept', { method: 'POST' })
                     .then(function (res) {
-                        alert("Ride accepted! Head to the pickup location.");
+                        showMessage("Ride accepted! Head to the pickup location.", "success");
                         displayRide(res.ride);
                     })
                     .catch(function (err) {
-                        alert("Could not accept ride: " + err.message);
+                        showMessage("Could not accept ride: " + err.message, "error");
                         checkForRequests();
                     })
                     .finally(function () {
@@ -479,11 +508,11 @@
                 startRideBtn.disabled = true;
                 api('/api/rides/' + currentRide.id + '/start', { method: 'POST' })
                     .then(function (res) {
-                        alert("Trip started. Drive safely to destination.");
+                        showMessage("Trip started. Drive safely to destination.", "success");
                         displayRide(res.ride);
                     })
                     .catch(function (err) {
-                        alert("Could not start trip: " + err.message);
+                        showMessage("Could not start trip: " + err.message, "error");
                     })
                     .finally(function () {
                         startRideBtn.disabled = false;
@@ -498,12 +527,12 @@
                     method: 'POST',
                     body: JSON.stringify({ fare: currentRide.fare })
                 }).then(function () {
-                    alert("Trip completed successfully! Payment recorded.");
+                    showMessage("Trip completed successfully! Payment recorded.", "success");
                     currentRide = null;
                     displayRide(null);
                     loadPerformance();
                 }).catch(function (err) {
-                    alert("Could not complete trip: " + err.message);
+                    showMessage("Could not complete trip: " + err.message, "error");
                 }).finally(function () {
                     completeRideBtn.disabled = false;
                 });

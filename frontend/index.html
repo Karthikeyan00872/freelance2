@@ -24,6 +24,20 @@
             display: none !important;
         }
 
+        .message-toast {
+            position: fixed; top: 24px; right: 24px; z-index: 2000;
+            display: flex; align-items: flex-start; gap: 14px;
+            width: min(380px, calc(100vw - 32px)); padding: 16px 18px;
+            background: var(--paper-raised); border: 1px solid var(--border);
+            border-left: 5px solid var(--marigold); border-radius: var(--radius-md);
+            box-shadow: 0 14px 32px var(--shadow); font-weight: 600;
+            animation: toast-in .2s ease-out;
+        }
+        .message-toast.error { border-left-color: var(--red); }
+        .message-toast.success { border-left-color: var(--green); }
+        .message-toast button { flex: 0 0 auto; border: 0; background: transparent; color: var(--ink-soft); font-size: 20px; line-height: 1; cursor: pointer; }
+        @keyframes toast-in { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
         html {
             scroll-behavior: smooth;
         }
@@ -2310,6 +2324,21 @@
         (function () {
             "use strict";
 
+            function showMessage(message, type) {
+                var toast = document.createElement("div");
+                var closeButton = document.createElement("button");
+                toast.className = "message-toast " + (type || "");
+                toast.setAttribute("role", "status");
+                toast.appendChild(document.createTextNode(message));
+                closeButton.type = "button";
+                closeButton.setAttribute("aria-label", "Close message");
+                closeButton.textContent = "×";
+                closeButton.addEventListener("click", function () { toast.remove(); });
+                toast.appendChild(closeButton);
+                document.body.appendChild(toast);
+                window.setTimeout(function () { if (toast.isConnected) toast.remove(); }, 4500);
+            }
+
             var API_BASE = window.RANICAB_API_BASE || (window.location.port === "5000" ? window.location.origin : "http://localhost:5000");
             var googleCredential = null;
 
@@ -2401,7 +2430,7 @@
 
             function finishGoogleAuth(phone, signupMode) {
                 if (!googleCredential) {
-                    alert("Google credential missing. Please try Continue with Google again.");
+                    showMessage("Google credential missing. Please try Continue with Google again.", "error");
                     return;
                 }
                 return api("/api/auth/google", {
@@ -2414,7 +2443,7 @@
                         window.location.href = "/frontend/driver_dashboard.html";
                     }
                 }).catch(function (error) {
-                    alert(error.message);
+                    showMessage(error.message, "error");
                 });
             }
 
@@ -2479,7 +2508,7 @@
                 var containerId = signupMode ? "googleSignupBtnReal" : "googleLoginBtnReal";
                 if (!googleButtonsReady || !clickRenderedGoogleButton(containerId)) {
                     initGoogleButtons();
-                    alert("Google Sign-In is still loading. Please try again in a moment.");
+                    showMessage("Google Sign-In is still loading. Please try again in a moment.", "error");
                 }
             }
 
@@ -2966,14 +2995,14 @@
             function requireRiderAuth(callback) {
                 var session = getSession();
                 if (!session) {
-                    alert("Please log in or sign up to book your trip.");
+                    showMessage("Please log in or sign up to book your trip.", "error");
                     showLoginPanel("creds");
                     setRoleTab("rider");
                     openModal(loginBackdrop);
                     return;
                 }
                 if (session.role !== "rider") {
-                    alert("You are signed in as a driver. Please log in as a rider to book a trip.");
+                    showMessage("You are signed in as a driver. Please log in as a rider to book a trip.", "error");
                     return;
                 }
                 callback(session);
@@ -3010,7 +3039,7 @@
                         }).then(function (res) {
                             window.location.href = "/frontend/rider_dashboard.html";
                         }).catch(function (err) {
-                            alert("Booking failed: " + err.message);
+                            showMessage("Booking failed: " + err.message, "error");
                             bookOnewayBtn.disabled = false;
                             bookOnewayBtn.textContent = "Book Oneway Trip";
                         });
@@ -3049,7 +3078,7 @@
                         }).then(function (res) {
                             window.location.href = "/frontend/rider_dashboard.html";
                         }).catch(function (err) {
-                            alert("Booking failed: " + err.message);
+                            showMessage("Booking failed: " + err.message, "error");
                             bookHourlyBtn.disabled = false;
                             bookHourlyBtn.textContent = "Book Hourly Rental";
                         });
@@ -3090,7 +3119,7 @@
                         }).then(function (res) {
                             window.location.href = "/frontend/rider_dashboard.html";
                         }).catch(function (err) {
-                            alert("Booking failed: " + err.message);
+                            showMessage("Booking failed: " + err.message, "error");
                             bookAirportBtn.disabled = false;
                             bookAirportBtn.textContent = "Book Airport Transfer";
                         });
