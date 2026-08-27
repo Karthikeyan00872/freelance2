@@ -742,25 +742,53 @@ def complete_ride(ride_id):
     return {"ride": payload}
 
 
-@app.post("/api/rides/<ride_id>/cancel")
-@require_role("rider", "driver")
-def cancel_ride(ride_id):
+@app.post("/api/rides/<ride_id>/unassign")
+@require_role("driver")
+def unassign_ride(ride_id):
     ride_oid = oid(ride_id)
     if not ride_oid:
         return jsonify({"error": "Invalid ride ID"}), 400
-    
-    query = {"_id": ride_oid, "status": {"$in": ["requested", "accepted"]}}
-    if request.user["role"] == "rider":
-        query["rider_id"] = request.user["_id"]
-    else:
-        query["driver_id"] = request.user["_id"]
-        
+
+    # Only allow unassign if the ride is accepted and assigned to this driver
+    ride = rides.find_one({"_id": ride_oid, "driver_id": request.user["_id"], "status": "accepted"})
+    if not ride:
+        return jsonify({"error": "Ride not found, not assigned to you, or not in accepted state"}), 404
+
+    # Reset status to requested and remove driver
+    rides.update_one(
+        {"_id": ride_oid},
+        {"$set": {"status": "requested", "driver_id": None, "accepted_at": None}}
+    )
+
+    updated_ride = rides.find_one({"_id": ride_oid})
+    payload = serialize(updated_ride)
+
+    # Notify drivers and the rider
+    socketio.emit("ride_updated", payload, room="drivers")
+    socketio.emit("ride_updated", payload, room=f"rider:{ride['rider_id']}")
+
+    return {"ride": payload}
+
+
+@app.post("/api/rides/<ride_id>/cancel")
+@require_role("rider", "driver")
+def cancel_ride(ride_id):
+    # Only riders can permanently cancel a ride
+    if request.user["role"] != "rider":
+        return jsonify({"error": "Only riders can permanently cancel a ride"}), 403
+
+    ride_oid = oid(ride_id)
+    if not ride_oid:
+        return jsonify({"error": "Invalid ride ID"}), 400
+
+    query = {"_id": ride_oid, "status": {"$in": ["requested", "accepted"]}, "rider_id": request.user["_id"]}
     result = rides.update_one(query, {"$set": {"status": "cancelled", "cancelled_at": now()}})
     if result.modified_count == 0:
         return jsonify({"error": "Ride cannot be cancelled"}), 400
-        
+
     ride = rides.find_one({"_id": ride_oid})
     payload = serialize(ride)
+    # Notify all parties
     socketio.emit("ride_updated", payload, room=f"rider:{ride['rider_id']}")
     if ride.get("driver_id"):
         socketio.emit("ride_updated", payload, room=f"driver:{ride['driver_id']}")
@@ -915,4 +943,3 @@ def serve_src_assets(filename):
 
 if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=int(os.getenv("PORT", 5000)))
-

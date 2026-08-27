@@ -281,20 +281,30 @@
         else showMessage("Rider contact is not available for this trip.", "error");
       });
 
-      // Cancel ride (driver)
+      // *** UPDATED: Cancel button for drivers – uses unassign endpoint ***
       cancelRideBtn.addEventListener('click', function(){
         if (!currentRide) return;
-        if (!confirm("Cancel this ride? This cannot be undone.")) return;
+        if (currentRide.status !== 'accepted') {
+          showMessage("You can only unassign an accepted ride.", "error");
+          return;
+        }
+        if (!confirm("Unassign from this ride? It will be offered to other drivers.")) return;
         cancelRideBtn.disabled = true;
-        api('/api/rides/' + currentRide.id + '/cancel', { method: 'POST' })
+        api('/api/rides/' + currentRide.id + '/unassign', { method: 'POST' })
           .then(function(){
-            showMessage("Ride cancelled.", "success");
-            currentRide = null;
-            displayRide(null);
-            fetchAvailableRides();
+            showMessage("You have dropped this ride. It is now available for other drivers.", "success");
+            // Refresh active ride (should become null)
+            api('/api/rides/active')
+              .then(function(act){ displayRide(act.ride); })
+              .catch(function(){ displayRide(null); });
+            fetchAvailableRides(); // Refresh the list
           })
-          .catch(function(err){ showMessage("Could not cancel: " + err.message, "error"); })
-          .finally(function(){ cancelRideBtn.disabled = false; });
+          .catch(function(err){
+            showMessage("Could not unassign: " + err.message, "error");
+          })
+          .finally(function(){
+            cancelRideBtn.disabled = false;
+          });
       });
 
       acceptRideBtn.addEventListener('click', function(){
@@ -365,7 +375,7 @@
           badgeEl.style.color = "#155724";
           startRideBtn.style.display = "inline-flex";
           cancelRideBtn.style.display = "inline-flex";
-          cancelRideBtn.textContent = "Cancel Ride";
+          cancelRideBtn.textContent = "Unassign Ride";
         } else if (ride.status === "ongoing") {
           badgeEl.textContent = "Trip in Progress · Heading to drop";
           badgeEl.style.background = "#cce5ff";
@@ -377,8 +387,6 @@
           badgeEl.style.background = "#e2e3e5";
           badgeEl.style.color = "#383d41";
         }
-        // Hide the available rides list if we have an active ride
-        // We'll still show it but dim? We'll keep it visible.
       }
 
       // ---------- Available rides list ----------
