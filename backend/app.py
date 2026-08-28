@@ -115,14 +115,127 @@ if not settings.find_one({"type": "pricing"}):
 ACTIVE_STATUSES = ["requested", "accepted", "ongoing"]
 ALLOWED_COMPLETION_STATUSES = ["pending_completion", "completed"]
 
-# Tamil Nadu city coordinates mapping
+# ============================================================
+# EXPANDED TAMIL NADU CITY / TOWN DATABASE
+# ============================================================
 TN_CITIES = {
+    # --- Major Cities ---
     "madurai": {"lng": 78.1198, "lat": 9.9252, "name": "Madurai"},
     "chennai": {"lng": 80.2707, "lat": 13.0827, "name": "Chennai"},
     "coimbatore": {"lng": 76.9558, "lat": 11.0168, "name": "Coimbatore"},
     "trichy": {"lng": 78.7047, "lat": 10.7905, "name": "Trichy"},
     "salem": {"lng": 78.1460, "lat": 11.6643, "name": "Salem"},
     "tirupur": {"lng": 77.3411, "lat": 11.1085, "name": "Tirupur"},
+    "erode": {"lng": 77.7200, "lat": 11.3410, "name": "Erode"},
+    "vellore": {"lng": 79.1326, "lat": 12.9165, "name": "Vellore"},
+    "kanchipuram": {"lng": 79.7031, "lat": 12.8342, "name": "Kanchipuram"},
+    "thanjavur": {"lng": 79.1398, "lat": 10.7870, "name": "Thanjavur"},
+    "dindigul": {"lng": 77.9804, "lat": 10.3689, "name": "Dindigul"},
+    "tuticorin": {"lng": 78.1343, "lat": 8.7642, "name": "Tuticorin"},
+    "kanyakumari": {"lng": 77.5385, "lat": 8.0840, "name": "Kanyakumari"},
+    "tirunelveli": {"lng": 77.7005, "lat": 8.7300, "name": "Tirunelveli"},
+    "karur": {"lng": 78.0800, "lat": 10.9600, "name": "Karur"},
+    "namakkal": {"lng": 78.1700, "lat": 11.2300, "name": "Namakkal"},
+    "hosur": {"lng": 77.8300, "lat": 12.7200, "name": "Hosur"},
+    "cuddalore": {"lng": 79.7500, "lat": 11.7500, "name": "Cuddalore"},
+
+    # --- Towns & Sub‑localities (Madurai region) ---
+    "melur": {"lng": 78.3393, "lat": 10.0326, "name": "Melur"},
+    "avaniyapuram": {"lng": 78.1200, "lat": 9.9200, "name": "Avaniyapuram"},
+    "thiruparankundram": {"lng": 78.0750, "lat": 9.8800, "name": "Thiruparankundram"},
+    "alagarkoil": {"lng": 78.1400, "lat": 10.0500, "name": "Alagarkoil"},
+    "vadipatti": {"lng": 78.0500, "lat": 10.0800, "name": "Vadipatti"},
+    "usilampatti": {"lng": 77.9500, "lat": 10.1700, "name": "Usilampatti"},
+
+    # --- Chennai suburbs ---
+    "t nagar": {"lng": 80.2400, "lat": 13.0400, "name": "T Nagar"},
+    "adyar": {"lng": 80.2600, "lat": 13.0100, "name": "Adyar"},
+    "velachery": {"lng": 80.2300, "lat": 12.9800, "name": "Velachery"},
+    "tambaram": {"lng": 80.1200, "lat": 12.9300, "name": "Tambaram"},
+    "mylapore": {"lng": 80.2700, "lat": 13.0400, "name": "Mylapore"},
+    "egmore": {"lng": 80.2600, "lat": 13.0700, "name": "Egmore"},
+    "porur": {"lng": 80.1600, "lat": 13.0400, "name": "Porur"},
+
+    # --- Coimbatore suburbs ---
+    "peelamedu": {"lng": 77.0100, "lat": 11.0300, "name": "Peelamedu"},
+    "saravanampatti": {"lng": 77.0000, "lat": 11.0700, "name": "Saravanampatti"},
+    "gandhipuram": {"lng": 76.9600, "lat": 11.0200, "name": "Gandhipuram"},
+    "ramanathapuram": {"lng": 76.9500, "lat": 11.0000, "name": "Ramanathapuram"},
+    "singanallur": {"lng": 77.0200, "lat": 11.0100, "name": "Singanallur"},
+
+    # --- Trichy suburbs ---
+    "srirangam": {"lng": 78.7000, "lat": 10.8700, "name": "Srirangam"},
+    "thillai nagar": {"lng": 78.7200, "lat": 10.8000, "name": "Thillai Nagar"},
+    "kajamalai": {"lng": 78.6800, "lat": 10.7600, "name": "Kajamalai"},
+    "kallakudi": {"lng": 78.8400, "lat": 10.9700, "name": "Kallakudi"},
+
+    # --- Salem suburbs ---
+    "gugai": {"lng": 78.1500, "lat": 11.6700, "name": "Gugai"},
+    "muthunaickenpatti": {"lng": 78.1300, "lat": 11.6400, "name": "Muthunaickenpatti"},
+    "jarugumalai": {"lng": 78.2000, "lat": 11.6000, "name": "Jarugumalai"},
+    "kitchipalayam": {"lng": 78.1000, "lat": 11.6800, "name": "Kitchipalayam"},
+
+    # --- Tirupur suburbs ---
+    "avai shanmugam nagar": {"lng": 77.3400, "lat": 11.1100, "name": "Avai Shanmugam Nagar"},
+    "kangeyam": {"lng": 77.5500, "lat": 11.0200, "name": "Kangeyam"},
+    "uttukkuli": {"lng": 77.4300, "lat": 11.1700, "name": "Uttukkuli"},
+
+    # --- Erode suburbs ---
+    "perundurai": {"lng": 77.5800, "lat": 11.2700, "name": "Perundurai"},
+    "bhavani": {"lng": 77.6800, "lat": 11.4500, "name": "Bhavani"},
+    "sathyamangalam": {"lng": 77.2400, "lat": 11.5100, "name": "Sathyamangalam"},
+
+    # --- Vellore suburbs ---
+    "katpadi": {"lng": 79.1600, "lat": 12.9700, "name": "Katpadi"},
+    "gudiyatham": {"lng": 79.0700, "lat": 12.9400, "name": "Gudiyatham"},
+    "ambur": {"lng": 78.7100, "lat": 12.7900, "name": "Ambur"},
+
+    # --- Kanchipuram suburbs ---
+    "chengalpattu": {"lng": 79.7000, "lat": 12.6900, "name": "Chengalpattu"},
+    "uthiramerur": {"lng": 79.7600, "lat": 12.6200, "name": "Uthiramerur"},
+
+    # --- Thanjavur suburbs ---
+    "kumbakonam": {"lng": 79.3800, "lat": 10.9600, "name": "Kumbakonam"},
+    "pattukkottai": {"lng": 79.3200, "lat": 10.4300, "name": "Pattukkottai"},
+    "papanasam": {"lng": 79.2800, "lat": 10.9300, "name": "Papanasam"},
+
+    # --- Dindigul suburbs ---
+    "palani": {"lng": 77.5200, "lat": 10.4500, "name": "Palani"},
+    "oddanchatram": {"lng": 77.7400, "lat": 10.4900, "name": "Oddanchatram"},
+    "natham": {"lng": 78.2300, "lat": 10.2200, "name": "Natham"},
+
+    # --- Tuticorin suburbs ---
+    "kovilpatti": {"lng": 77.8700, "lat": 9.1700, "name": "Kovilpatti"},
+    "sattankulam": {"lng": 78.0300, "lat": 8.4500, "name": "Sattankulam"},
+
+    # --- Kanyakumari suburbs ---
+    "nagercoil": {"lng": 77.4300, "lat": 8.1700, "name": "Nagercoil"},
+    "marthandam": {"lng": 77.2300, "lat": 8.3100, "name": "Marthandam"},
+    "padmanabhapuram": {"lng": 77.3300, "lat": 8.2400, "name": "Padmanabhapuram"},
+
+    # --- Tirunelveli suburbs ---
+    "palayamkottai": {"lng": 77.7200, "lat": 8.7200, "name": "Palayamkottai"},
+    "ambasamudram": {"lng": 77.4600, "lat": 8.7000, "name": "Ambasamudram"},
+    "tenkasi": {"lng": 77.3000, "lat": 8.9600, "name": "Tenkasi"},
+
+    # --- Karur suburbs ---
+    "kulithalai": {"lng": 78.4100, "lat": 10.9300, "name": "Kulithalai"},
+    "krishnarayapuram": {"lng": 78.1300, "lat": 10.8800, "name": "Krishnarayapuram"},
+
+    # --- Namakkal suburbs ---
+    "paramathi velur": {"lng": 78.0600, "lat": 11.3500, "name": "Paramathi Velur"},
+    "rasipuram": {"lng": 78.1700, "lat": 11.4600, "name": "Rasipuram"},
+
+    # --- Hosur suburbs ---
+    "denkanikottai": {"lng": 77.7800, "lat": 12.5300, "name": "Denkanikottai"},
+    "thally": {"lng": 77.6900, "lat": 12.6200, "name": "Thally"},
+
+    # --- Cuddalore suburbs ---
+    "chidambaram": {"lng": 79.6900, "lat": 11.4000, "name": "Chidambaram"},
+    "panruti": {"lng": 79.5500, "lat": 11.7700, "name": "Panruti"},
+    "neyveli": {"lng": 79.5100, "lat": 11.6100, "name": "Neyveli"},
+
+    # --- Airports (keep existing) ---
     "madurai airport": {"lng": 78.0934, "lat": 9.8345, "name": "Madurai Airport (IXM)"},
     "madurai airport (ixm)": {"lng": 78.0934, "lat": 9.8345, "name": "Madurai Airport (IXM)"},
     "chennai airport": {"lng": 80.1709, "lat": 12.9941, "name": "Chennai Airport (MAA)"},
@@ -486,7 +599,7 @@ def forgot_password_verify():
     if not otp_doc:
         return jsonify({"error": "No OTP request found for this email"}), 400
 
-    expires_at = otp_doc.get("expires_at")   # naive datetime
+    expires_at = otp_doc.get("expires_at")
     if not expires_at or expires_at < now():
         return jsonify({"error": "OTP expired – please request a new one"}), 400
 
@@ -798,7 +911,6 @@ def complete_ride(ride_id):
     if not ride:
         return jsonify({"error": "Ride not found or not assigned to you"}), 404
 
-    # Generate OTP and store hashed
     otp = f"{secrets.randbelow(1000000):06d}"
     otp_hash = generate_password_hash(otp)
     expires_at = now() + timedelta(minutes=10)
@@ -809,7 +921,7 @@ def complete_ride(ride_id):
             "status": "pending_completion",
             "completion_otp_hash": otp_hash,
             "completion_otp_expires": expires_at,
-            "completed_at": now()  # tentative
+            "completed_at": now()
         }}
     )
 
@@ -847,7 +959,6 @@ def complete_ride_verify(ride_id):
     if not check_password_hash(ride.get("completion_otp_hash", ""), otp):
         return jsonify({"error": "Invalid OTP"}), 400
 
-    # Mark as completed
     rides.update_one(
         {"_id": ride_oid},
         {"$set": {"status": "completed", "finalized_at": now()},
@@ -878,14 +989,11 @@ def rate_driver(ride_id):
     if not ride:
         return jsonify({"error": "Ride not found or not completed"}), 404
 
-    # Check if already rated
     if ride.get("rider_rating") is not None:
         return jsonify({"error": "You have already rated this ride"}), 400
 
-    # Update ride with rating
     rides.update_one({"_id": ride_oid}, {"$set": {"rider_rating": rating}})
 
-    # Update driver's average rating
     driver_id = ride["driver_id"]
     if driver_id:
         all_rides = list(rides.find({"driver_id": driver_id, "rider_rating": {"$exists": True}}))
@@ -937,7 +1045,6 @@ def unassign_ride(ride_id):
 @app.post("/api/rides/<ride_id>/cancel")
 @require_role("rider", "driver")
 def cancel_ride(ride_id):
-    # Only riders can permanently cancel a ride
     if request.user["role"] != "rider":
         return jsonify({"error": "Only riders can permanently cancel a ride"}), 403
 
@@ -975,7 +1082,6 @@ def active_ride():
     if request.user["role"] == "rider" and active.get("driver_id"):
         driver_info = active.get("driver_info")
         if driver_info:
-            # Ensure rating is up-to-date
             driver_doc = drivers.find_one({"user_id": active["driver_id"]}) or {}
             driver_info["rating"] = driver_doc.get("rating", 5.0)
             payload["driver"] = driver_info

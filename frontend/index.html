@@ -1755,25 +1755,25 @@
                             <div class="ticket-body">
                                 <div class="ticket-ref"><span>BOOKING · <span
                                             id="refOnewayPage">VG-1000</span></span><span>~₹12/km</span></div>
-                                <div class="field"><label for="ow-from">Pickup City</label>
-                                    <select class="input" id="ow-from">
-                                        <option>Madurai</option>
-                                        <option>Chennai</option>
-                                        <option>Coimbatore</option>
-                                        <option>Trichy</option>
-                                        <option>Salem</option>
-                                        <option>Tirupur</option>
-                                    </select>
+                                <div class="field-row">
+                                    <div class="field">
+                                        <label for="ow-pickup-city">Pickup City</label>
+                                        <select class="input city-select" id="ow-pickup-city"></select>
+                                    </div>
+                                    <div class="field">
+                                        <label for="ow-pickup-town">Pickup Town</label>
+                                        <select class="input town-select" id="ow-pickup-town"></select>
+                                    </div>
                                 </div>
-                                <div class="field"><label for="ow-to">Drop City</label>
-                                    <select class="input" id="ow-to">
-                                        <option>Chennai</option>
-                                        <option>Madurai</option>
-                                        <option>Coimbatore</option>
-                                        <option>Trichy</option>
-                                        <option>Salem</option>
-                                        <option>Tirupur</option>
-                                    </select>
+                                <div class="field-row">
+                                    <div class="field">
+                                        <label for="ow-drop-city">Drop City</label>
+                                        <select class="input city-select" id="ow-drop-city"></select>
+                                    </div>
+                                    <div class="field">
+                                        <label for="ow-drop-town">Drop Town</label>
+                                        <select class="input town-select" id="ow-drop-town"></select>
+                                    </div>
                                 </div>
                                 <div class="perforation"></div>
                                 <div class="field-row">
@@ -1865,13 +1865,15 @@
                                         <button class="chip" type="button" data-hr="12">12 Hrs</button>
                                     </div>
                                 </div>
-                                <div class="field"><label for="hp-city">Pickup City</label>
-                                    <select class="input" id="hp-city">
-                                        <option>Madurai</option>
-                                        <option>Chennai</option>
-                                        <option>Coimbatore</option>
-                                        <option>Trichy</option>
-                                    </select>
+                                <div class="field-row">
+                                    <div class="field">
+                                        <label for="hp-city">Pickup City</label>
+                                        <select class="input city-select" id="hp-city"></select>
+                                    </div>
+                                    <div class="field">
+                                        <label for="hp-town">Pickup Town</label>
+                                        <select class="input town-select" id="hp-town"></select>
+                                    </div>
                                 </div>
                                 <div class="perforation"></div>
                                 <div class="field-row">
@@ -2615,42 +2617,226 @@
                 });
             });
 
-            /* ---------- ONEWAY FARE CALCULATION ---------- */
-            var cityDistances = {
-                "Madurai-Chennai": 460, "Chennai-Madurai": 460,
-                "Madurai-Coimbatore": 215, "Coimbatore-Madurai": 215,
-                "Madurai-Trichy": 135, "Trichy-Madurai": 135,
-                "Madurai-Salem": 230, "Salem-Madurai": 230,
-                "Madurai-Tirupur": 195, "Tirupur-Madurai": 195,
-                "Chennai-Coimbatore": 510, "Coimbatore-Chennai": 510,
-                "Chennai-Trichy": 330, "Trichy-Chennai": 330,
-                "Chennai-Salem": 345, "Salem-Chennai": 345,
-                "Chennai-Tirupur": 460, "Tirupur-Chennai": 460,
-                "Coimbatore-Trichy": 215, "Trichy-Coimbatore": 215,
-                "Coimbatore-Salem": 165, "Salem-Coimbatore": 165,
-                "Coimbatore-Tirupur": 55, "Tirupur-Coimbatore": 55,
-                "Trichy-Salem": 140, "Salem-Trichy": 140,
-                "Trichy-Tirupur": 190, "Tirupur-Trichy": 190,
-                "Salem-Tirupur": 120, "Tirupur-Salem": 120
+            /* ---------- CITY / TOWN OPTIONS ---------- */
+            var cityTowns = {
+                "Madurai": ["Madurai", "Melur", "Avaniyapuram", "Thiruparankundram", "Alagarkoil", "Vadipatti", "Usilampatti"],
+                "Chennai": ["Chennai", "T Nagar", "Adyar", "Velachery", "Tambaram", "Mylapore", "Egmore", "Porur"],
+                "Coimbatore": ["Coimbatore", "Peelamedu", "Saravanampatti", "Gandhipuram", "Ramanathapuram", "Singanallur"],
+                "Trichy": ["Trichy", "Srirangam", "Thillai Nagar", "Kajamalai", "Kallakudi"],
+                "Salem": ["Salem", "Gugai", "Muthunaickenpatti", "Jarugumalai", "Kitchipalayam"],
+                "Tirupur": ["Tirupur", "Avai Shanmugam Nagar", "Kangeyam", "Uttukkuli"],
+                "Erode": ["Erode", "Perundurai", "Bhavani", "Sathyamangalam"],
+                "Vellore": ["Vellore", "Katpadi", "Gudiyatham", "Ambur"],
+                "Kanchipuram": ["Kanchipuram", "Chengalpattu", "Uthiramerur"],
+                "Thanjavur": ["Thanjavur", "Kumbakonam", "Pattukkottai", "Papanasam"],
+                "Dindigul": ["Dindigul", "Palani", "Oddanchatram", "Natham"],
+                "Tuticorin": ["Tuticorin", "Kovilpatti", "Sattankulam"],
+                "Kanyakumari": ["Kanyakumari", "Nagercoil", "Marthandam", "Padmanabhapuram"],
+                "Tirunelveli": ["Tirunelveli", "Palayamkottai", "Ambasamudram", "Tenkasi"],
+                "Karur": ["Karur", "Kulithalai", "Krishnarayapuram"],
+                "Namakkal": ["Namakkal", "Paramathi Velur", "Rasipuram"],
+                "Hosur": ["Hosur", "Denkanikottai", "Thally"],
+                "Cuddalore": ["Cuddalore", "Chidambaram", "Panruti", "Neyveli"]
             };
 
-            function calculateOnewayFare() {
-                var fromCity = document.getElementById("ow-from") ? document.getElementById("ow-from").value : "Madurai";
-                var toCity = document.getElementById("ow-to") ? document.getElementById("ow-to").value : "Chennai";
-                var dist = cityDistances[fromCity + "-" + toCity] || 220;
-                if (fromCity === toCity) dist = 35;
-                var baseFare = Math.round(dist * 12);
-                var fareEl = document.getElementById("ow-fare");
-                if (fareEl) {
-                    fareEl.textContent = "₹" + baseFare.toLocaleString("en-IN");
+            var cityCoords = {
+                "Madurai": { lng: 78.1198, lat: 9.9252 },
+                "Melur": { lng: 78.3393, lat: 10.0326 },
+                "Avaniyapuram": { lng: 78.1200, lat: 9.9200 },
+                "Thiruparankundram": { lng: 78.0750, lat: 9.8800 },
+                "Alagarkoil": { lng: 78.1400, lat: 10.0500 },
+                "Vadipatti": { lng: 78.0500, lat: 10.0800 },
+                "Usilampatti": { lng: 77.9500, lat: 10.1700 },
+                "Chennai": { lng: 80.2707, lat: 13.0827 },
+                "T Nagar": { lng: 80.2400, lat: 13.0400 },
+                "Adyar": { lng: 80.2600, lat: 13.0100 },
+                "Velachery": { lng: 80.2300, lat: 12.9800 },
+                "Tambaram": { lng: 80.1200, lat: 12.9300 },
+                "Mylapore": { lng: 80.2700, lat: 13.0400 },
+                "Egmore": { lng: 80.2600, lat: 13.0700 },
+                "Porur": { lng: 80.1600, lat: 13.0400 },
+                "Coimbatore": { lng: 76.9558, lat: 11.0168 },
+                "Peelamedu": { lng: 77.0100, lat: 11.0300 },
+                "Saravanampatti": { lng: 77.0000, lat: 11.0700 },
+                "Gandhipuram": { lng: 76.9600, lat: 11.0200 },
+                "Ramanathapuram": { lng: 76.9500, lat: 11.0000 },
+                "Singanallur": { lng: 77.0200, lat: 11.0100 },
+                "Trichy": { lng: 78.7047, lat: 10.7905 },
+                "Srirangam": { lng: 78.7000, lat: 10.8700 },
+                "Thillai Nagar": { lng: 78.7200, lat: 10.8000 },
+                "Kajamalai": { lng: 78.6800, lat: 10.7600 },
+                "Kallakudi": { lng: 78.8400, lat: 10.9700 },
+                "Salem": { lng: 78.1460, lat: 11.6643 },
+                "Gugai": { lng: 78.1500, lat: 11.6700 },
+                "Muthunaickenpatti": { lng: 78.1300, lat: 11.6400 },
+                "Jarugumalai": { lng: 78.2000, lat: 11.6000 },
+                "Kitchipalayam": { lng: 78.1000, lat: 11.6800 },
+                "Tirupur": { lng: 77.3411, lat: 11.1085 },
+                "Avai Shanmugam Nagar": { lng: 77.3400, lat: 11.1100 },
+                "Kangeyam": { lng: 77.5500, lat: 11.0200 },
+                "Uttukkuli": { lng: 77.4300, lat: 11.1700 },
+                "Erode": { lng: 77.7200, lat: 11.3410 },
+                "Perundurai": { lng: 77.5800, lat: 11.2700 },
+                "Bhavani": { lng: 77.6800, lat: 11.4500 },
+                "Sathyamangalam": { lng: 77.2400, lat: 11.5100 },
+                "Vellore": { lng: 79.1326, lat: 12.9165 },
+                "Katpadi": { lng: 79.1600, lat: 12.9700 },
+                "Gudiyatham": { lng: 79.0700, lat: 12.9400 },
+                "Ambur": { lng: 78.7100, lat: 12.7900 },
+                "Kanchipuram": { lng: 79.7031, lat: 12.8342 },
+                "Chengalpattu": { lng: 79.7000, lat: 12.6900 },
+                "Uthiramerur": { lng: 79.7600, lat: 12.6200 },
+                "Thanjavur": { lng: 79.1398, lat: 10.7870 },
+                "Kumbakonam": { lng: 79.3800, lat: 10.9600 },
+                "Pattukkottai": { lng: 79.3200, lat: 10.4300 },
+                "Papanasam": { lng: 79.2800, lat: 10.9300 },
+                "Dindigul": { lng: 77.9804, lat: 10.3689 },
+                "Palani": { lng: 77.5200, lat: 10.4500 },
+                "Oddanchatram": { lng: 77.7400, lat: 10.4900 },
+                "Natham": { lng: 78.2300, lat: 10.2200 },
+                "Tuticorin": { lng: 78.1343, lat: 8.7642 },
+                "Kovilpatti": { lng: 77.8700, lat: 9.1700 },
+                "Sattankulam": { lng: 78.0300, lat: 8.4500 },
+                "Kanyakumari": { lng: 77.5385, lat: 8.0840 },
+                "Nagercoil": { lng: 77.4300, lat: 8.1700 },
+                "Marthandam": { lng: 77.2300, lat: 8.3100 },
+                "Padmanabhapuram": { lng: 77.3300, lat: 8.2400 },
+                "Tirunelveli": { lng: 77.7005, lat: 8.7300 },
+                "Palayamkottai": { lng: 77.7200, lat: 8.7200 },
+                "Ambasamudram": { lng: 77.4600, lat: 8.7000 },
+                "Tenkasi": { lng: 77.3000, lat: 8.9600 },
+                "Karur": { lng: 78.0800, lat: 10.9600 },
+                "Kulithalai": { lng: 78.4100, lat: 10.9300 },
+                "Krishnarayapuram": { lng: 78.1300, lat: 10.8800 },
+                "Namakkal": { lng: 78.1700, lat: 11.2300 },
+                "Paramathi Velur": { lng: 78.0600, lat: 11.3500 },
+                "Rasipuram": { lng: 78.1700, lat: 11.4600 },
+                "Hosur": { lng: 77.8300, lat: 12.7200 },
+                "Denkanikottai": { lng: 77.7800, lat: 12.5300 },
+                "Thally": { lng: 77.6900, lat: 12.6200 },
+                "Cuddalore": { lng: 79.7500, lat: 11.7500 },
+                "Chidambaram": { lng: 79.6900, lat: 11.4000 },
+                "Panruti": { lng: 79.5500, lat: 11.7700 },
+                "Neyveli": { lng: 79.5100, lat: 11.6100 }
+            };
+
+            function getTownsForCity(city) {
+                return cityTowns[city] || [city];
+            }
+
+            function getTownCoords(town) {
+                var key = String(town || "").toLowerCase().trim();
+                for (var city in cityCoords) {
+                    if (city.toLowerCase() === key) return cityCoords[city];
                 }
+                return null;
+            }
+
+            function haversine(lat1, lng1, lat2, lng2) {
+                var R = 6371;
+                var dLat = (lat2 - lat1) * Math.PI / 180;
+                var dLng = (lng2 - lng1) * Math.PI / 180;
+                var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                    Math.sin(dLng / 2) * Math.sin(dLng / 2);
+                var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                return R * c;
+            }
+
+            function populateCitySelect(selectId, preferredCity) {
+                var select = document.getElementById(selectId);
+                if (!select) return;
+                var cities = Object.keys(cityTowns).sort();
+                var current = preferredCity || select.value;
+                select.innerHTML = "";
+                cities.forEach(function(city) {
+                    var option = document.createElement("option");
+                    option.value = city;
+                    option.textContent = city;
+                    select.appendChild(option);
+                });
+                if (current && cities.indexOf(current) !== -1) {
+                    select.value = current;
+                }
+            }
+
+            function populateTownSelect(cityId, townId) {
+                var citySelect = document.getElementById(cityId);
+                var townSelect = document.getElementById(townId);
+                if (!citySelect || !townSelect) return;
+                var city = citySelect.value;
+                var towns = getTownsForCity(city);
+                townSelect.innerHTML = "";
+                towns.forEach(function(town) {
+                    var option = document.createElement("option");
+                    option.value = town;
+                    option.textContent = town;
+                    townSelect.appendChild(option);
+                });
+                if (towns.indexOf(city) !== -1) townSelect.value = city;
+            }
+
+            function initTownOptions() {
+                // Town options exist ONLY for oneway and hourly.
+                populateCitySelect("ow-pickup-city", "Madurai");
+                populateCitySelect("ow-drop-city", "Chennai");
+                populateCitySelect("hp-city", "Madurai");
+
+                populateTownSelect("ow-pickup-city", "ow-pickup-town");
+                populateTownSelect("ow-drop-city", "ow-drop-town");
+                populateTownSelect("hp-city", "hp-town");
+
+                var pairs = [
+                    ["ow-pickup-city", "ow-pickup-town"],
+                    ["ow-drop-city", "ow-drop-town"],
+                    ["hp-city", "hp-town"]
+                ];
+                pairs.forEach(function(pair) {
+                    var citySelect = document.getElementById(pair[0]);
+                    if (!citySelect) return;
+                    citySelect.addEventListener("change", function() {
+                        populateTownSelect(pair[0], pair[1]);
+                        if (pair[0] === "ow-pickup-city" || pair[0] === "ow-drop-city") {
+                            calculateOnewayFare();
+                        }
+                    });
+                });
+
+                document.querySelectorAll("#ow-pickup-town, #ow-drop-town").forEach(function(select) {
+                    select.addEventListener("change", calculateOnewayFare);
+                });
+            }
+
+            initTownOptions();
+
+            /* ---------- ONEWAY FARE CALCULATION ---------- */
+            function calculateOnewayFare() {
+                var fromTownEl = document.getElementById("ow-pickup-town");
+                var toTownEl = document.getElementById("ow-drop-town");
+                var fromTown = fromTownEl ? fromTownEl.value : "";
+                var toTown = toTownEl ? toTownEl.value : "";
+                var fareEl = document.getElementById("ow-fare");
+
+                if (!fromTown || !toTown) {
+                    if (fareEl) fareEl.textContent = "₹0";
+                    return 0;
+                }
+
+                var from = getTownCoords(fromTown);
+                var to = getTownCoords(toTown);
+                if (!from || !to) {
+                    if (fareEl) fareEl.textContent = "₹0";
+                    return 0;
+                }
+
+                var dist = haversine(from.lat, from.lng, to.lat, to.lng);
+                if (fromTown === toTown) dist = 15;
+
+                var baseFare = Math.round(dist * 12);
+                if (fareEl) fareEl.textContent = "₹" + baseFare.toLocaleString("en-IN");
                 return baseFare;
             }
 
-            var owFromEl = document.getElementById("ow-from");
-            var owToEl = document.getElementById("ow-to");
-            if (owFromEl) owFromEl.addEventListener("change", calculateOnewayFare);
-            if (owToEl) owToEl.addEventListener("change", calculateOnewayFare);
             calculateOnewayFare();
 
             /* ---------- HOURLY CHIPS & FARE ---------- */
@@ -3056,8 +3242,8 @@
             if (bookOnewayBtn) {
                 bookOnewayBtn.addEventListener("click", function () {
                     requireRiderAuth(function (session) {
-                        var fromCity = document.getElementById("ow-from").value;
-                        var toCity = document.getElementById("ow-to").value;
+                        var fromTown = document.getElementById("ow-pickup-town").value;
+                        var toTown = document.getElementById("ow-drop-town").value;
                         var date = document.getElementById("ow-date").value || todayStr;
                         var time = document.getElementById("ow-time").value || nowTimeStr;
                         var phone = document.getElementById("ow-phone").value.trim() || session.phone;
@@ -3071,8 +3257,8 @@
                             method: "POST",
                             body: JSON.stringify({
                                 trip_type: "oneway",
-                                pickup_address: fromCity,
-                                dropoff_address: toCity,
+                                pickup_address: fromTown,
+                                dropoff_address: toTown,
                                 scheduled_date: date,
                                 scheduled_time: time,
                                 passenger_phone: phone,
@@ -3095,7 +3281,7 @@
             if (bookHourlyBtn) {
                 bookHourlyBtn.addEventListener("click", function () {
                     requireRiderAuth(function (session) {
-                        var city = document.getElementById("hp-city").value;
+                        var city = document.getElementById("hp-town").value;
                         var date = document.getElementById("hp-date").value || todayStr;
                         var time = document.getElementById("hp-time").value || nowTimeStr;
                         var phone = document.getElementById("hp-phone").value.trim() || session.phone;

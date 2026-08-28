@@ -273,14 +273,15 @@
                     dropoffMarker.bindPopup('Dropoff: ' + (ride.dropoff_address || ''));
                 } else { dropoffMarker.setOpacity(0); }
 
+                // --- FIX: Draw route ONLY when ride is not 'requested' ---
                 if (ride && ride.pickup_location && ride.pickup_location.coordinates &&
-                    ride.dropoff_location && ride.dropoff_location.coordinates) {
+                    ride.dropoff_location && ride.dropoff_location.coordinates &&
+                    ride.status !== 'requested') {
                     var pCoords = ride.pickup_location.coordinates;
                     var dCoords = ride.dropoff_location.coordinates;
                     drawRoute(pCoords[1], pCoords[0], dCoords[1], dCoords[0]);
                 } else {
-                    if (routeControl) { map.removeControl(routeControl);
-                        routeControl = null; }
+                    if (routeControl) { map.removeControl(routeControl); routeControl = null; }
                 }
 
                 if (ride && ride.pickup_location && ride.dropoff_location) {
