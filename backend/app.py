@@ -483,18 +483,28 @@ def forgot_password_verify():
     data = request.get_json(force=True) or {}
     email = data.get("email", "").lower().strip()
     otp_doc = password_otps.find_one({"email": email})
-    new_password = data.get("password", "")
-    expires_at = otp_doc.get("expires_at") if otp_doc else None
-    if expires_at and expires_at.tzinfo is None:
-        expires_at = expires_at.replace(tzinfo=timezone.utc)
-    if not otp_doc or not expires_at or expires_at < now():
-        return jsonify({"error": "OTP expired or invalid"}), 400
-    if otp_doc.get("attempts", 0) >= 5 or not check_password_hash(otp_doc.get("otp_hash", ""), data.get("otp", "")):
+    if not otp_doc:
+        return jsonify({"error": "No OTP request found for this email"}), 400
+
+    expires_at = otp_doc.get("expires_at")   # naive datetime
+    if not expires_at or expires_at < now():
+        return jsonify({"error": "OTP expired – please request a new one"}), 400
+
+    if otp_doc.get("attempts", 0) >= 5:
+        return jsonify({"error": "Too many failed attempts"}), 400
+
+    if not check_password_hash(otp_doc.get("otp_hash", ""), data.get("otp", "")):
         password_otps.update_one({"_id": otp_doc["_id"]}, {"$inc": {"attempts": 1}})
-        return jsonify({"error": "OTP expired or invalid"}), 400
+        return jsonify({"error": "Invalid OTP"}), 400
+
+    new_password = data.get("password", "")
     if len(new_password) < 6:
         return jsonify({"error": "Password must be at least 6 characters"}), 400
-    users.update_one({"email": email, "provider": {"$ne": "google"}}, {"$set": {"password_hash": generate_password_hash(new_password), "updated_at": now()}})
+
+    users.update_one(
+        {"email": email, "provider": {"$ne": "google"}},
+        {"$set": {"password_hash": generate_password_hash(new_password), "updated_at": now()}}
+    )
     password_otps.delete_many({"email": email})
     return {"message": "Password updated successfully"}
 
