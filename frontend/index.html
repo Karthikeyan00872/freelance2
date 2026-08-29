@@ -3237,6 +3237,21 @@
                 callback(session);
             }
 
+            // Shared handler: a rider can only have one active ride at a time
+            // (Single Active Ride Lock). Give a clear, actionable message
+            // instead of a raw booking error when that's the reason it failed.
+            function handleBookingError(err, btn, originalLabel) {
+                var isActiveRideConflict = /already have an active ride/i.test(err.message || "");
+                if (isActiveRideConflict) {
+                    showMessage("You already have a ride in progress — taking you there now.", "error");
+                    setTimeout(function () { window.location.href = "/frontend/rider_dashboard.html"; }, 1200);
+                    return;
+                }
+                showMessage("Booking failed: " + err.message, "error");
+                btn.disabled = false;
+                btn.textContent = originalLabel;
+            }
+
             // 1. Oneway Booking
             var bookOnewayBtn = document.getElementById("bookOnewayBtn");
             if (bookOnewayBtn) {
@@ -3268,9 +3283,7 @@
                         }).then(function (res) {
                             window.location.href = "/frontend/rider_dashboard.html";
                         }).catch(function (err) {
-                            showMessage("Booking failed: " + err.message, "error");
-                            bookOnewayBtn.disabled = false;
-                            bookOnewayBtn.textContent = "Book Oneway Trip";
+                            handleBookingError(err, bookOnewayBtn, "Book Oneway Trip");
                         });
                     });
                 });
@@ -3307,9 +3320,7 @@
                         }).then(function (res) {
                             window.location.href = "/frontend/rider_dashboard.html";
                         }).catch(function (err) {
-                            showMessage("Booking failed: " + err.message, "error");
-                            bookHourlyBtn.disabled = false;
-                            bookHourlyBtn.textContent = "Book Hourly Rental";
+                            handleBookingError(err, bookHourlyBtn, "Book Hourly Rental");
                         });
                     });
                 });
@@ -3348,9 +3359,7 @@
                         }).then(function (res) {
                             window.location.href = "/frontend/rider_dashboard.html";
                         }).catch(function (err) {
-                            showMessage("Booking failed: " + err.message, "error");
-                            bookAirportBtn.disabled = false;
-                            bookAirportBtn.textContent = "Book Airport Transfer";
+                            handleBookingError(err, bookAirportBtn, "Book Airport Transfer");
                         });
                     });
                 });

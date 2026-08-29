@@ -336,6 +336,11 @@
                         <input class="input" type="text" id="drvPlate" placeholder="TN-01-AB-1234" required style="width:100%; padding:10px; border-radius:8px; border:1.5px solid var(--border);">
                     </div>
                     <div class="field">
+                        <label style="font-size:12px; font-weight:700; text-transform:uppercase; color:var(--ink-soft); display:block; margin-bottom:4px;">UPI ID (Optional)</label>
+                        <input class="input" type="text" id="drvUpi" placeholder="driver@upi" style="width:100%; padding:10px; border-radius:8px; border:1.5px solid var(--border);">
+                        <p class="muted" style="font-size:11px; margin-top:4px;">Used to generate the driver's payment QR code at ride completion. The driver can also set this themselves later.</p>
+                    </div>
+                    <div class="field">
                         <label style="font-size:12px; font-weight:700; text-transform:uppercase; color:var(--ink-soft); display:block; margin-bottom:4px;">Operating City</label>
                         <select class="input" id="drvCity" style="width:100%; padding:10px; border-radius:8px; border:1.5px solid var(--border);">
                             <option value="madurai">Madurai</option>
@@ -515,6 +520,7 @@
                     email: document.getElementById('drvEmail').value.trim(),
                     vehicle_model: document.getElementById('drvModel').value,
                     license_plate: document.getElementById('drvPlate').value.trim(),
+                    upi_id: document.getElementById('drvUpi').value.trim(),
                     city: document.getElementById('drvCity').value
                 };
 

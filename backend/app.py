@@ -4,6 +4,7 @@ import smtplib
 from html import escape
 from datetime import datetime, timezone, timedelta
 from functools import wraps
+from urllib.parse import quote
 
 from dotenv import load_dotenv
 from email.message import EmailMessage
@@ -659,6 +660,7 @@ def create_driver():
     phone = data.get("phone", "").strip()
     vehicle_model = data.get("vehicle_model", "Sedan").strip()
     license_plate = data.get("license_plate", f"TN-{secrets.randbelow(90)+10}-AB-{secrets.randbelow(9000)+1000}").strip()
+    upi_id = data.get("upi_id", "").strip()
     
     loc = resolve_location(data.get("city", "madurai"), data.get("lng"), data.get("lat"))
     
@@ -680,6 +682,7 @@ def create_driver():
         "user_id": result.inserted_id,
         "vehicle_model": vehicle_model,
         "license_plate": license_plate,
+        "upi_id": upi_id,
         "is_online": False,
         "current_location": loc,
         "created_at": now()
@@ -756,9 +759,50 @@ def admin_settings():
 
 # ============ RIDE & DISPATCH ENDPOINTS ============
 
+def issue_completion_otp(ride, ride_oid):
+    """Generate a fresh OTP, store its hash/expiry/sent-time on the ride, email
+    it to the rider, and return the ride's serialized payload. Shared by the
+    initial completion trigger and the resend-OTP endpoint below."""
+    otp = f"{secrets.randbelow(1000000):06d}"
+    otp_hash = generate_password_hash(otp)
+    expires_at = now() + timedelta(minutes=10)
+
+    rides.update_one(
+        {"_id": ride_oid},
+        {"$set": {
+            "completion_otp_hash": otp_hash,
+            "completion_otp_expires": expires_at,
+            "completion_otp_sent_at": now(),
+        }}
+    )
+
+    rider = users.find_one({"_id": ride["rider_id"]})
+    if rider and rider.get("email"):
+        send_completion_otp_email(rider["email"], rider.get("name", "Rider"), otp)
+    else:
+        app.logger.warning(f"Rider email missing for ride {ride['_id']}, OTP not sent")
+
+    return serialize(rides.find_one({"_id": ride_oid}))
+
+
 @app.post("/api/rides/request")
 @require_role("rider")
 def request_ride():
+    # --- Single Active Ride Lock ---
+    # A rider may only have one ride in flight at a time. Check the database for
+    # any ride still in an ACTIVE, IN_PROGRESS, or PENDING state before allowing
+    # a new request to be created.
+    existing_active = rides.find_one({
+        "rider_id": request.user["_id"],
+        "status": {"$in": ACTIVE_STATUSES + ["pending_completion"]}
+    })
+    if existing_active:
+        return jsonify({
+            "error": "You already have an active ride in progress. Please complete or cancel it before booking a new one.",
+            "code": "ACTIVE_RIDE_EXISTS",
+            "active_ride_id": str(existing_active["_id"])
+        }), 409
+
     data = request.get_json(force=True) or {}
     pickup_addr = data.get("pickup_address", "Madurai")
     dropoff_addr = data.get("dropoff_address", "Chennai")
@@ -911,30 +955,78 @@ def complete_ride(ride_id):
     if not ride:
         return jsonify({"error": "Ride not found or not assigned to you"}), 404
 
-    otp = f"{secrets.randbelow(1000000):06d}"
-    otp_hash = generate_password_hash(otp)
-    expires_at = now() + timedelta(minutes=10)
+    # --- Secured Ride Completion: build a dynamic UPI payment QR string ---
+    # The driver's UPI ID plus the exact fare amount is encoded into a standard
+    # upi://pay deep link. The frontend renders this as a QR code so the rider
+    # can scan and pay with any UPI app before the OTP is exchanged.
+    driver_profile = drivers.find_one({"user_id": request.user["_id"]}) or {}
+    driver_upi_id = (driver_profile.get("upi_id") or "").strip()
+    driver_display_name = request.user.get("name", "RaniCab Driver")
+    fare_amount = round(float(ride.get("fare", 0) or 0), 2)
+    payment_upi_uri = None
+    if driver_upi_id:
+        payment_upi_uri = (
+            "upi://pay?pa=" + quote(driver_upi_id) +
+            "&pn=" + quote(driver_display_name) +
+            "&am=" + quote(f"{fare_amount:.2f}") +
+            "&cu=INR&tn=" + quote(f"RaniCab ride {str(ride_oid)[-6:]}")
+        )
 
     rides.update_one(
         {"_id": ride_oid},
         {"$set": {
             "status": "pending_completion",
-            "completion_otp_hash": otp_hash,
-            "completion_otp_expires": expires_at,
-            "completed_at": now()
+            "completed_at": now(),
+            "payment_upi_uri": payment_upi_uri,
+            "payment_amount": fare_amount,
         }}
     )
 
-    rider = users.find_one({"_id": ride["rider_id"]})
-    if rider and rider.get("email"):
-        send_completion_otp_email(rider["email"], rider.get("name", "Rider"), otp)
-    else:
-        app.logger.warning(f"Rider email missing for ride {ride_id}, OTP not sent")
-
-    payload = serialize(rides.find_one({"_id": ride_oid}))
+    payload = issue_completion_otp(ride, ride_oid)
     socketio.emit("ride_updated", payload, room=f"rider:{ride['rider_id']}")
     socketio.emit("ride_updated", payload, room="drivers")
     return {"ride": payload, "message": "OTP sent to rider. Waiting for verification."}
+
+
+RESEND_OTP_COOLDOWN_SECONDS = 30
+
+
+@app.post("/api/rides/<ride_id>/resend-otp")
+@require_role("driver", "rider")
+def resend_completion_otp(ride_id):
+    # Either party on a ride awaiting completion can request a fresh OTP —
+    # the rider if the original email never arrived, the driver if the rider
+    # says theirs expired or got lost. A short cooldown keeps this from being
+    # spammed and flooding the rider's inbox.
+    ride_oid = oid(ride_id)
+    if not ride_oid:
+        return jsonify({"error": "Invalid ride ID"}), 400
+
+    query = {"_id": ride_oid, "status": "pending_completion"}
+    if request.user.get("role") == "driver":
+        query["driver_id"] = request.user["_id"]
+    else:
+        query["rider_id"] = request.user["_id"]
+
+    ride = rides.find_one(query)
+    if not ride:
+        return jsonify({"error": "Ride not found or not awaiting OTP"}), 404
+
+    last_sent = ride.get("completion_otp_sent_at")
+    if last_sent:
+        if last_sent.tzinfo is None:
+            last_sent = last_sent.replace(tzinfo=timezone.utc)
+        elapsed = (datetime.now(timezone.utc) - last_sent).total_seconds()
+        if elapsed < RESEND_OTP_COOLDOWN_SECONDS:
+            wait = int(RESEND_OTP_COOLDOWN_SECONDS - elapsed) + 1
+            return jsonify({"error": f"Please wait {wait}s before requesting another OTP.", "retry_after": wait}), 429
+
+    payload = issue_completion_otp(ride, ride_oid)
+    socketio.emit("ride_updated", payload, room=f"rider:{ride['rider_id']}")
+    if ride.get("driver_id"):
+        socketio.emit("ride_updated", payload, room=f"driver:{ride['driver_id']}")
+    socketio.emit("ride_updated", payload, room="drivers")
+    return {"ride": payload, "message": "A new OTP has been sent to the rider's email."}
 
 
 @app.post("/api/rides/<ride_id>/complete-verify")
@@ -962,13 +1054,51 @@ def complete_ride_verify(ride_id):
     rides.update_one(
         {"_id": ride_oid},
         {"$set": {"status": "completed", "finalized_at": now()},
-         "$unset": {"completion_otp_hash": "", "completion_otp_expires": ""}}
+         "$unset": {"completion_otp_hash": "", "completion_otp_expires": "", "completion_otp_sent_at": ""}}
     )
 
     payload = serialize(rides.find_one({"_id": ride_oid}))
     socketio.emit("ride_updated", payload, room=f"rider:{ride['rider_id']}")
     if ride.get("driver_id"):
         socketio.emit("ride_updated", payload, room=f"driver:{ride['driver_id']}")
+    socketio.emit("ride_updated", payload, room="drivers")
+    return {"ride": payload, "message": "Trip completed successfully!"}
+
+
+@app.post("/api/rides/<ride_id>/complete-verify-driver")
+@require_role("driver")
+def complete_ride_verify_driver(ride_id):
+    # Mirrors complete_ride_verify, but lets the DRIVER key in the OTP the rider
+    # reads out to them after scanning the UPI QR and paying — this matches the
+    # secured completion flow: driver collects payment, then finalizes the trip.
+    data = request.get_json(force=True) or {}
+    otp = data.get("otp", "").strip()
+    ride_oid = oid(ride_id)
+    if not ride_oid or not otp:
+        return jsonify({"error": "Invalid ride ID or missing OTP"}), 400
+
+    ride = rides.find_one({"_id": ride_oid, "driver_id": request.user["_id"], "status": "pending_completion"})
+    if not ride:
+        return jsonify({"error": "Ride not found or not awaiting OTP"}), 404
+
+    expires = ride.get("completion_otp_expires")
+    if expires and expires.tzinfo is None:
+        expires = expires.replace(tzinfo=timezone.utc)
+    if not expires or expires < datetime.now(timezone.utc):
+        return jsonify({"error": "OTP has expired. Please ask the rider to check their email again, or regenerate by re-completing the ride."}), 400
+
+    if not check_password_hash(ride.get("completion_otp_hash", ""), otp):
+        return jsonify({"error": "Invalid OTP. Please double-check with the rider."}), 400
+
+    rides.update_one(
+        {"_id": ride_oid},
+        {"$set": {"status": "completed", "finalized_at": now()},
+         "$unset": {"completion_otp_hash": "", "completion_otp_expires": "", "completion_otp_sent_at": ""}}
+    )
+
+    payload = serialize(rides.find_one({"_id": ride_oid}))
+    socketio.emit("ride_updated", payload, room=f"rider:{ride['rider_id']}")
+    socketio.emit("ride_updated", payload, room=f"driver:{ride['driver_id']}")
     socketio.emit("ride_updated", payload, room="drivers")
     return {"ride": payload, "message": "Trip completed successfully!"}
 
@@ -1012,6 +1142,48 @@ def rate_driver(ride_id):
     payload = serialize(rides.find_one({"_id": ride_oid}))
     socketio.emit("ride_updated", payload, room=f"rider:{ride['rider_id']}")
     return {"ride": payload, "message": "Thank you for your rating!"}
+
+
+@app.post("/api/rides/<ride_id>/rate-rider")
+@require_role("driver")
+def rate_rider(ride_id):
+    # Mirror of rate_driver, for the other direction of the post-ride star rating.
+    data = request.get_json(force=True) or {}
+    rating = data.get("rating")
+    if rating is None or not (1 <= rating <= 5):
+        return jsonify({"error": "Rating must be between 1 and 5"}), 400
+
+    ride_oid = oid(ride_id)
+    if not ride_oid:
+        return jsonify({"error": "Invalid ride ID"}), 400
+
+    ride = rides.find_one({"_id": ride_oid, "driver_id": request.user["_id"], "status": "completed"})
+    if not ride:
+        return jsonify({"error": "Ride not found or not completed"}), 404
+
+    if ride.get("driver_rating") is not None:
+        return jsonify({"error": "You have already rated this rider"}), 400
+
+    rides.update_one({"_id": ride_oid}, {"$set": {"driver_rating": rating}})
+
+    rider_id = ride["rider_id"]
+    if rider_id:
+        all_rides = list(rides.find({"rider_id": rider_id, "driver_rating": {"$exists": True}}))
+        ratings = [r.get("driver_rating") for r in all_rides if r.get("driver_rating") is not None]
+        if ratings:
+            avg = round(sum(ratings) / len(ratings), 1)
+            count = len(ratings)
+        else:
+            avg = 5.0
+            count = 0
+        users.update_one(
+            {"_id": rider_id},
+            {"$set": {"rating": avg, "ratings_count": count}}
+        )
+
+    payload = serialize(rides.find_one({"_id": ride_oid}))
+    socketio.emit("ride_updated", payload, room=f"driver:{request.user['_id']}")
+    return {"ride": payload, "message": "Thanks for rating your rider!"}
 
 
 @app.post("/api/rides/<ride_id>/unassign")
@@ -1141,6 +1313,20 @@ def toggle_driver_online():
     new_status = bool(data.get("is_online", not current_status))
     drivers.update_one({"user_id": request.user["_id"]}, {"$set": {"is_online": new_status, "updated_at": now()}})
     return {"is_online": new_status}
+
+
+@app.post("/api/driver/upi")
+@require_role("driver")
+def update_driver_upi():
+    data = request.get_json(silent=True) or {}
+    upi_id = data.get("upi_id", "").strip()
+    if upi_id and "@" not in upi_id:
+        return jsonify({"error": "Enter a valid UPI ID, e.g. name@bank"}), 400
+    driver = drivers.find_one({"user_id": request.user["_id"]})
+    if not driver:
+        return jsonify({"error": "Driver profile not found"}), 404
+    drivers.update_one({"user_id": request.user["_id"]}, {"$set": {"upi_id": upi_id, "updated_at": now()}})
+    return {"upi_id": upi_id}
 
 
 @app.get("/api/driver/performance")
