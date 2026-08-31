@@ -1,589 +1,988 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rani Cab — Admin Dashboard</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap"
-        rel="stylesheet">
-    <style>
-        :root {
-            --ink: #1B1B1F;
-            --ink-soft: #54555C;
-            --paper: #FAF6EE;
-            --paper-raised: #FFFFFF;
-            --marigold: #E8A33D;
-            --marigold-dark: #C9832A;
-            --green: #1E7A4C;
-            --green-dark: #155C39;
-            --red: #C0392B;
-            --border: #E3DCCB;
-            --radius-md: 14px;
-            --radius-lg: 22px;
-            --shadow: rgba(27, 27, 31, .10)
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RaniCab — Admin Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #0f1117; --surface: #1a1d29; --surface2: #232735; --border: #2e3344;
+  --text: #e4e6eb; --text2: #9ca3af; --accent: #e8a33d; --accent2: #f0b853;
+  --green: #22c55e; --red: #ef4444; --blue: #3b82f6; --purple: #8b5cf6;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,sans-serif; }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0
-        }
+/* Login */
+#loginScreen { display:flex; align-items:center; justify-content:center; min-height:100vh; }
+.login-card { background:var(--surface); padding:40px; border-radius:16px; width:400px; border:1px solid var(--border); }
+.login-card h1 { text-align:center; color:var(--accent); margin-bottom:8px; font-size:28px; }
+.login-card p { text-align:center; color:var(--text2); margin-bottom:24px; font-size:14px; }
+.login-card input { width:100%; padding:12px 16px; margin-bottom:16px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:14px; }
+.login-card button { width:100%; padding:14px; background:var(--accent); border:none; border-radius:8px; color:#1a1a1a; font-weight:bold; font-size:15px; cursor:pointer; }
+.login-card button:hover { background:var(--accent2); }
+.login-error { color:var(--red); text-align:center; margin-bottom:12px; font-size:13px; display:none; }
 
-        [hidden] {
-            display: none !important;
-        }
+/* Dashboard Layout */
+#dashboard { display:none; }
+.sidebar { position:fixed; left:0; top:0; bottom:0; width:240px; background:var(--surface); border-right:1px solid var(--border); padding:20px 0; z-index:100; }
+.sidebar-brand { padding:0 24px 24px; border-bottom:1px solid var(--border); margin-bottom:16px; }
+.sidebar-brand h2 { color:var(--accent); font-size:22px; }
+.sidebar-brand span { color:var(--text2); font-size:12px; }
+.nav-item { display:flex; align-items:center; gap:12px; padding:12px 24px; color:var(--text2); cursor:pointer; transition:0.2s; font-size:14px; }
+.nav-item:hover { background:var(--surface2); color:var(--text); }
+.nav-item.active { background:var(--accent); color:#1a1a1a; font-weight:600; }
+.nav-item svg { width:20px; height:20px; flex-shrink:0; }
+.main { margin-left:240px; padding:32px; }
 
-        .message-toast {
-            position: fixed; top: 24px; right: 24px; z-index: 2000;
-            display: flex; align-items: flex-start; gap: 14px;
-            width: min(380px, calc(100vw - 32px)); padding: 16px 18px;
-            background: var(--paper-raised); border: 1px solid var(--border);
-            border-left: 5px solid var(--marigold); border-radius: var(--radius-md);
-            box-shadow: 0 14px 32px var(--shadow); font-weight: 600;
-            animation: toast-in .2s ease-out;
-        }
-        .message-toast.error { border-left-color: var(--red); }
-        .message-toast.success { border-left-color: var(--green); }
-        .message-toast button { flex: 0 0 auto; border: 0; background: transparent; color: var(--ink-soft); font-size: 20px; line-height: 1; cursor: pointer; }
-        @keyframes toast-in { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+/* Stats Cards */
+.stats-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:20px; margin-bottom:32px; }
+.stat-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:24px; }
+.stat-card .label { color:var(--text2); font-size:13px; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px; }
+.stat-card .value { font-size:28px; font-weight:bold; }
+.stat-card.online .value { color:var(--green); }
+.stat-card.revenue .value { color:var(--accent); }
+.stat-card .sub { font-size:12px; color:var(--text2); margin-top:4px; }
 
-        body {
-            font-family: 'Work Sans', sans-serif;
-            background: var(--paper);
-            color: var(--ink);
-            line-height: 1.5
-        }
+/* Charts */
+.charts-row { display:grid; grid-template-columns:2fr 1fr; gap:20px; margin-bottom:24px; }
+.chart-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:24px; }
+.chart-card h3 { font-size:16px; margin-bottom:16px; color:var(--text); }
+.chart-card canvas { max-height:300px; }
 
-        .container {
-            max-width: 1180px;
-            margin: 0 auto;
-            padding: 24px
-        }
+/* Online Drivers */
+.online-section { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:24px; margin-bottom:24px; }
+.online-section h3 { font-size:16px; margin-bottom:16px; display:flex; align-items:center; gap:8px; }
+.live-dot { width:10px; height:10px; background:var(--green); border-radius:50%; animation:pulse 1.5s infinite; }
+@keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+.online-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:16px; }
+.online-card { background:var(--surface2); border-radius:10px; padding:16px; display:flex; gap:14px; align-items:center; border:1px solid transparent; }
+.online-card:hover { border-color:var(--accent); }
+.online-card img { width:48px; height:48px; border-radius:50%; object-fit:cover; background:var(--border); }
+.online-card .info h4 { font-size:14px; margin-bottom:2px; }
+.online-card .info p { font-size:12px; color:var(--text2); }
+.online-card .badge { background:var(--green); color:#0a1a0a; padding:2px 8px; border-radius:4px; font-size:10px; font-weight:bold; }
 
-        .eyebrow {
-            font: 600 12px 'IBM Plex Mono', monospace;
-            letter-spacing: .14em;
-            text-transform: uppercase;
-            color: var(--marigold-dark)
-        }
+/* Table */
+.table-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+.table-header { padding:20px 24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; }
+.table-header h3 { font-size:16px; }
+table { width:100%; border-collapse:collapse; }
+th { text-align:left; padding:12px 16px; color:var(--text2); font-size:12px; text-transform:uppercase; letter-spacing:0.5px; border-bottom:1px solid var(--border); }
+td { padding:12px 16px; font-size:14px; border-bottom:1px solid var(--border); }
+tr:hover { background:var(--surface2); }
+.driver-thumb { width:36px; height:36px; border-radius:50%; object-fit:cover; background:var(--border); }
+.status-badge { padding:4px 10px; border-radius:6px; font-size:11px; font-weight:600; }
+.status-online { background:rgba(34,197,94,0.2); color:var(--green); }
+.status-offline { background:rgba(156,163,175,0.2); color:var(--text2); }
 
-        h1,
-        h2,
-        h3 {
-            font-family: 'Oswald', sans-serif;
-            line-height: 1.1
-        }
+/* Buttons */
+.btn { padding:8px 16px; border:none; border-radius:8px; cursor:pointer; font-size:13px; font-weight:600; transition:0.2s; }
+.btn-primary { background:var(--accent); color:#1a1a1a; }
+.btn-primary:hover { background:var(--accent2); }
+.btn-secondary { background:var(--surface2); color:var(--text); border:1px solid var(--border); }
+.btn-secondary:hover { background:var(--border); }
+.btn-danger { background:rgba(239,68,68,0.15); color:var(--red); }
+.btn-danger:hover { background:rgba(239,68,68,0.3); }
+.btn-sm { padding:6px 12px; font-size:12px; }
+.btn-group { display:flex; gap:6px; }
 
-        .nav,
-        .card {
-            background: var(--paper-raised);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
-            box-shadow: 0 14px 32px var(--shadow)
-        }
+/* Modal */
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.7); display:none; align-items:flex-start; justify-content:center; z-index:1000; padding:40px 20px; overflow-y:auto; }
+.modal-overlay.active { display:flex; }
+.modal { background:var(--surface); border:1px solid var(--border); border-radius:16px; width:100%; max-width:720px; padding:0; overflow:hidden; }
+.modal-header { padding:24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; }
+.modal-header h2 { font-size:20px; }
+.modal-close { background:none; border:none; color:var(--text2); font-size:24px; cursor:pointer; }
+.modal-body { padding:24px; max-height:70vh; overflow-y:auto; }
 
-        .nav {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 18px 22px;
-            margin-bottom: 24px
-        }
+/* Driver Detail */
+.driver-detail-header { display:flex; gap:20px; margin-bottom:24px; }
+.driver-detail-header img.profile { width:100px; height:100px; border-radius:12px; object-fit:cover; background:var(--border); }
+.driver-detail-header .info h2 { font-size:22px; margin-bottom:4px; }
+.driver-detail-header .info p { color:var(--text2); font-size:14px; margin-bottom:2px; }
+.driver-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:24px; }
+.driver-stat { background:var(--surface2); padding:16px; border-radius:8px; text-align:center; }
+.driver-stat .val { font-size:22px; font-weight:bold; color:var(--accent); }
+.driver-stat .lbl { font-size:12px; color:var(--text2); margin-top:4px; }
+.image-gallery { display:grid; grid-template-columns:repeat(2,1fr); gap:16px; }
+.image-item { background:var(--surface2); border-radius:8px; overflow:hidden; }
+.image-item .img-wrap { width:100%; height:160px; background:var(--border); display:flex; align-items:center; justify-content:center; overflow:hidden; }
+.image-item .img-wrap img { width:100%; height:100%; object-fit:cover; }
+.image-item .img-label { padding:12px; font-size:13px; display:flex; justify-content:space-between; align-items:center; }
 
-        .grid {
-            display: grid;
-            grid-template-columns: 1.15fr .85fr;
-            gap: 22px
-        }
+/* Form */
+.form-group { margin-bottom:16px; }
+.form-group label { display:block; font-size:13px; color:var(--text2); margin-bottom:6px; }
+.form-group input, .form-group select, .form-group textarea {
+  width:100%; padding:10px 14px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:14px;
+}
+.form-group textarea { min-height:100px; resize:vertical; }
+.form-row { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.upload-zone { border:2px dashed var(--border); border-radius:8px; padding:20px; text-align:center; cursor:pointer; transition:0.2s; }
+.upload-zone:hover { border-color:var(--accent); }
+.upload-zone input { display:none; }
+.upload-preview { width:80px; height:80px; border-radius:8px; object-fit:cover; margin-top:8px; }
 
-        .card {
-            padding: 22px
-        }
+/* View sections */
+.view { display:none; }
+.view.active { display:block; }
 
-        .map {
-            min-height: 430px;
-            border-radius: var(--radius-lg);
-            background: linear-gradient(135deg, #efe6d3, #fff 45%, #f7dba9);
-            position: relative;
-            overflow: hidden
-        }
+/* Search */
+.search-bar { padding:8px 14px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:14px; width:300px; }
 
-        .map:before {
-            content: '';
-            position: absolute;
-            inset: 35px;
-            background: repeating-linear-gradient(90deg, transparent 0 58px, rgba(27, 27, 31, .08) 59px 62px), repeating-linear-gradient(0deg, transparent 0 58px, rgba(27, 27, 31, .08) 59px 62px)
-        }
-
-        .pin,
-        .car {
-            position: absolute;
-            z-index: 1;
-            padding: 10px 12px;
-            border-radius: 999px;
-            background: var(--ink);
-            color: #fff;
-            font-weight: 700
-        }
-
-        .car {
-            left: 55%;
-            top: 43%;
-            background: var(--green)
-        }
-
-        .pin {
-            left: 30%;
-            top: 62%
-        }
-
-        .btn {
-            display: inline-flex;
-            padding: 14px 26px;
-            border-radius: 999px;
-            font-weight: 700;
-            border: 0;
-            background: var(--marigold);
-            box-shadow: 0 6px 0 var(--marigold-dark)
-        }
-
-        .badge {
-            display: inline-flex;
-            padding: 7px 12px;
-            border-radius: 999px;
-            background: #FBE7C6;
-            color: var(--marigold-dark);
-            font-weight: 700
-        }
-
-        .list {
-            display: grid;
-            gap: 12px;
-            margin-top: 14px
-        }
-
-        .row {
-            display: flex;
-            justify-content: space-between;
-            gap: 12px;
-            padding: 12px 0;
-            border-bottom: 1px solid var(--border)
-        }
-
-        .metric {
-            font-size: 30px;
-            font-weight: 800
-        }
-
-        .chart {
-            display: flex;
-            align-items: end;
-            gap: 10px;
-            height: 160px;
-            margin-top: 18px
-        }
-
-        .bar {
-            flex: 1;
-            background: var(--marigold);
-            border-radius: 10px 10px 0 0;
-            min-height: 28px
-        }
-
-        .muted {
-            color: var(--ink-soft)
-        }
-
-        @media(max-width:850px) {
-            .grid {
-                grid-template-columns: 1fr
-            }
-
-            .nav {
-                align-items: flex-start;
-                gap: 12px;
-                flex-direction: column
-            }
-        }
-    </style>
+/* Toast */
+#toast { position:fixed; bottom:24px; right:24px; z-index:2000; }
+.toast-msg { background:var(--surface); border:1px solid var(--border); border-left:4px solid var(--green); padding:14px 20px; border-radius:8px; margin-bottom:8px; font-size:14px; animation:slideIn 0.3s; }
+.toast-msg.error { border-left-color:var(--red); }
+@keyframes slideIn { from{transform:translateX(100%);opacity:0;} to{transform:translateX(0);opacity:1;} }
+</style>
 </head>
-
 <body>
-    <main class="container">
-        <section class="nav">
-            <div><span class="eyebrow">Secure Admin</span>
-                <h1>Business control panel</h1>
-            </div>
-            <div style="display:flex; gap:10px; align-items:center;">
-                <button class="btn" id="registerDriverBtn" type="button">Register Driver</button>
-                <button class="btn" id="adminLogoutBtn" style="background:var(--ink); color:#fff; box-shadow:0 6px 0 #000;" type="button">Log out</button>
-            </div>
-        </section>
-        <section class="card"><span class="eyebrow">Overall Revenue</span>
-            <div class="grid" style="margin-top:16px">
-                <div class="list">
-                    <div class="row"><span>Total Revenue Today</span><strong id="revenueToday">₹ 0</strong></div>
-                    <div class="row"><span>Total Revenue This Month</span><strong id="revenueMonth">₹ 0</strong></div>
-                    <div class="row"><span>All-Time Earnings</span><strong id="revenueAllTime">₹ 0</strong></div>
-                </div>
-                <div class="chart" id="revenueChart">
-                    <span class="bar" style="height:42%"></span>
-                    <span class="bar" style="height:58%"></span>
-                    <span class="bar" style="height:50%"></span>
-                    <span class="bar" style="height:76%"></span>
-                    <span class="bar" style="height:84%"></span>
-                    <span class="bar" style="height:70%"></span>
-                    <span class="bar" style="height:92%"></span>
-                </div>
-            </div>
-        </section>
-        <section class="grid" style="margin-top:22px">
-            <div class="card">
-                <h2>Driver Information</h2>
-                <div class="list" id="driverRosterList">
-                    <div class="row"><span class="muted">Loading driver roster...</span></div>
-                </div>
-            </div>
-            <div class="card">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <h2>Settings</h2>
-                    <button class="btn" id="editSettingsBtn" style="padding:6px 14px; font-size:12px;" type="button">Edit Settings</button>
-                </div>
-                <div class="list" id="settingsView">
-                    <div class="row"><span>Base fare</span><strong id="settingBaseFare">₹80</strong></div>
-                    <div class="row"><span>Price / km</span><strong id="settingPerKm">₹18</strong></div>
-                    <div class="row"><span>Surge multiplier</span><strong id="settingSurge">1.0x</strong></div>
-                    <div class="row"><span>Maintenance Mode</span><strong id="settingMaint">Off</strong></div>
-                </div>
-                <form id="settingsForm" style="display:none; margin-top:14px;">
-                    <div class="row"><span>Base fare (₹)</span><input type="number" id="inputBaseFare" class="input" style="width:110px; padding:6px 8px;" value="80"></div>
-                    <div class="row"><span>Price / km (₹)</span><input type="number" id="inputPerKm" class="input" style="width:110px; padding:6px 8px;" value="18"></div>
-                    <div class="row"><span>Surge multiplier</span><input type="number" step="0.1" id="inputSurge" class="input" style="width:110px; padding:6px 8px;" value="1.0"></div>
-                    <div class="row"><span>Maintenance Mode</span>
-                        <select id="inputMaint" class="input" style="width:110px; padding:6px 8px;">
-                            <option value="false">Off</option>
-                            <option value="true">On</option>
-                        </select>
-                    </div>
-                    <div style="display:flex; gap:10px; margin-top:14px;">
-                        <button class="btn" type="submit" style="flex:1; padding:10px;">Save Settings</button>
-                        <button class="btn" type="button" id="cancelSettingsBtn" style="flex:1; background:var(--paper); border:1px solid var(--border); box-shadow:none; padding:10px;">Cancel</button>
-                    </div>
-                </form>
-            </div>
-        </section>
-    </main>
 
-    <!-- ADMIN LOGIN MODAL -->
-    <div id="adminLoginModal" style="position:fixed; inset:0; background:rgba(27,27,31,0.65); backdrop-filter:blur(3px); display:none; align-items:center; justify-content:center; z-index:1000; padding:20px;">
-        <div class="card" style="max-width:400px; width:100%;">
-            <span class="eyebrow">RaniCab Admin</span>
-            <h2 style="margin:10px 0 16px;">Admin Authentication</h2>
-            <form id="adminLoginForm">
-                <div class="list">
-                    <div class="field">
-                        <label style="font-size:12px; font-weight:700; text-transform:uppercase; color:var(--ink-soft); margin-bottom:4px; display:block;">Username</label>
-                        <input class="input" type="text" id="adminUser" placeholder="admin" required style="width:100%; padding:10px; border-radius:8px; border:1.5px solid var(--border);">
-                    </div>
-                    <div class="field">
-                        <label style="font-size:12px; font-weight:700; text-transform:uppercase; color:var(--ink-soft); margin-bottom:4px; display:block;">Password</label>
-                        <input class="input" type="password" id="adminPass" placeholder="••••••••" required style="width:100%; padding:10px; border-radius:8px; border:1.5px solid var(--border);">
-                    </div>
-                </div>
-                <p id="adminLoginError" style="color:var(--red); font-size:13px; margin:10px 0; display:none;">Invalid admin credentials</p>
-                <button class="btn" type="submit" style="width:100%; margin-top:14px;">Sign In to Console</button>
-            </form>
+<!-- LOGIN SCREEN -->
+<div id="loginScreen">
+  <div class="login-card">
+    <h1>🚖 RaniCab</h1>
+    <p>Admin Control Panel</p>
+    <div class="login-error" id="loginError">Invalid credentials</div>
+    <input type="text" id="adminUser" placeholder="Admin Username" value="">
+    <input type="password" id="adminPass" placeholder="Admin Password" value="">
+    <button onclick="adminLogin()">Login to Dashboard</button>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-brand">
+      <h2>🚖 RaniCab</h2>
+      <span>Admin Panel</span>
+    </div>
+    <div class="nav-item active" data-view="dashboardView" onclick="switchView('dashboardView', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      Dashboard
+    </div>
+    <div class="nav-item" data-view="driversView" onclick="switchView('driversView', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 19a2 2 0 1 0-4 0"/><path d="M18 14V11a6 6 0 0 0-12 0v3"/><circle cx="6" cy="19" r="2"/><circle cx="18" cy="19" r="2"/></svg>
+      Drivers
+    </div>
+    <div class="nav-item" data-view="ridesView" onclick="switchView('ridesView', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 17H3v-6l2-5h11l2 5v6h-2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg>
+      Rides
+    </div>
+    <div class="nav-item" data-view="settingsView" onclick="switchView('settingsView', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      Settings
+    </div>
+    <div class="nav-item" onclick="adminLogout()" style="margin-top:auto; position:absolute; bottom:20px; width:240px;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      Logout
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main">
+
+    <!-- DASHBOARD VIEW -->
+    <div class="view active" id="dashboardView">
+      <h1 style="font-size:24px; margin-bottom:24px;">Analytics Dashboard</h1>
+
+      <!-- Stats Cards -->
+      <div class="stats-grid">
+        <div class="stat-card online">
+          <div class="label">🟢 Drivers Online</div>
+          <div class="value" id="statOnline">0</div>
+          <div class="sub" id="statOnlineTotal">of 0 total</div>
         </div>
+        <div class="stat-card">
+          <div class="label">👥 Total Riders</div>
+          <div class="value" id="statRiders">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">🚗 Today's Rides</div>
+          <div class="value" id="statTodayRides">0</div>
+        </div>
+        <div class="stat-card revenue">
+          <div class="label">💰 Today's Revenue</div>
+          <div class="value" id="statTodayRevenue">₹0</div>
+        </div>
+        <div class="stat-card revenue">
+          <div class="label">📊 Month Revenue</div>
+          <div class="value" id="statMonthRevenue">₹0</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">📈 All-Time Revenue</div>
+          <div class="value" id="statAllRevenue">₹0</div>
+        </div>
+      </div>
+
+      <!-- Charts -->
+      <div class="charts-row">
+        <div class="chart-card">
+          <h3>Rides & Revenue — Last 7 Days</h3>
+          <canvas id="weeklyChart"></canvas>
+        </div>
+        <div class="chart-card">
+          <h3>Ride Status Breakdown</h3>
+          <canvas id="statusChart"></canvas>
+        </div>
+      </div>
+
+      <div class="charts-row">
+        <div class="chart-card">
+          <h3>Revenue Trend — Last 30 Days</h3>
+          <canvas id="monthlyChart"></canvas>
+        </div>
+        <div class="chart-card">
+          <h3>Rides Per Hour (Today)</h3>
+          <canvas id="hourlyChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Top Drivers -->
+      <div class="chart-card" style="margin-bottom:24px;">
+        <h3>🏆 Top 5 Drivers by Earnings</h3>
+        <canvas id="topDriversChart"></canvas>
+      </div>
+
+      <!-- Online Drivers Live -->
+      <div class="online-section">
+        <h3><span class="live-dot"></span> Drivers Currently Online <span id="onlineCount" style="color:var(--green); font-size:14px;"></span></h3>
+        <div class="online-grid" id="onlineDriversGrid">
+          <p style="color:var(--text2);">No drivers online.</p>
+        </div>
+      </div>
     </div>
 
-    <!-- REGISTER DRIVER MODAL -->
-    <div id="registerDriverModal" style="position:fixed; inset:0; background:rgba(27,27,31,0.65); backdrop-filter:blur(3px); display:none; align-items:center; justify-content:center; z-index:1000; padding:20px;">
-        <div class="card" style="max-width:440px; width:100%; max-height:90vh; overflow-y:auto;">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <span class="eyebrow">Driver Registration</span>
-                <button type="button" id="closeRegModalBtn" style="font-size:20px; font-weight:700; cursor:pointer;">✕</button>
-            </div>
-            <h2 style="margin:10px 0 16px;">Add New Fleet Driver</h2>
-            <form id="registerDriverForm">
-                <div class="list">
-                    <div class="field">
-                        <label style="font-size:12px; font-weight:700; text-transform:uppercase; color:var(--ink-soft); display:block; margin-bottom:4px;">Full Name</label>
-                        <input class="input" type="text" id="drvName" placeholder="e.g. Arun Kumar" required style="width:100%; padding:10px; border-radius:8px; border:1.5px solid var(--border);">
-                    </div>
-                    <div class="field">
-                        <label style="font-size:12px; font-weight:700; text-transform:uppercase; color:var(--ink-soft); display:block; margin-bottom:4px;">Mobile Number</label>
-                        <input class="input" type="tel" id="drvPhone" placeholder="98765 43210" required style="width:100%; padding:10px; border-radius:8px; border:1.5px solid var(--border);">
-                    </div>
-                    <div class="field">
-                        <label style="font-size:12px; font-weight:700; text-transform:uppercase; color:var(--ink-soft); display:block; margin-bottom:4px;">Email (Optional)</label>
-                        <input class="input" type="email" id="drvEmail" placeholder="driver@email.com" style="width:100%; padding:10px; border-radius:8px; border:1.5px solid var(--border);">
-                    </div>
-                    <div class="field">
-                        <label style="font-size:12px; font-weight:700; text-transform:uppercase; color:var(--ink-soft); display:block; margin-bottom:4px;">Vehicle Model</label>
-                        <select class="input" id="drvModel" style="width:100%; padding:10px; border-radius:8px; border:1.5px solid var(--border);">
-                            <option value="Sedan">Sedan (Dzire / Etios)</option>
-                            <option value="Mini">Mini (WagonR / Indica)</option>
-                            <option value="SUV">SUV (Innova / Ertiga)</option>
-                            <option value="Traveller">Traveller (12-Seater)</option>
-                        </select>
-                    </div>
-                    <div class="field">
-                        <label style="font-size:12px; font-weight:700; text-transform:uppercase; color:var(--ink-soft); display:block; margin-bottom:4px;">License Plate Number</label>
-                        <input class="input" type="text" id="drvPlate" placeholder="TN-01-AB-1234" required style="width:100%; padding:10px; border-radius:8px; border:1.5px solid var(--border);">
-                    </div>
-                    <div class="field">
-                        <label style="font-size:12px; font-weight:700; text-transform:uppercase; color:var(--ink-soft); display:block; margin-bottom:4px;">UPI ID (Optional)</label>
-                        <input class="input" type="text" id="drvUpi" placeholder="driver@upi" style="width:100%; padding:10px; border-radius:8px; border:1.5px solid var(--border);">
-                        <p class="muted" style="font-size:11px; margin-top:4px;">Used to generate the driver's payment QR code at ride completion. The driver can also set this themselves later.</p>
-                    </div>
-                    <div class="field">
-                        <label style="font-size:12px; font-weight:700; text-transform:uppercase; color:var(--ink-soft); display:block; margin-bottom:4px;">Operating City</label>
-                        <select class="input" id="drvCity" style="width:100%; padding:10px; border-radius:8px; border:1.5px solid var(--border);">
-                            <option value="madurai">Madurai</option>
-                            <option value="chennai">Chennai</option>
-                            <option value="coimbatore">Coimbatore</option>
-                            <option value="trichy">Trichy</option>
-                            <option value="salem">Salem</option>
-                            <option value="tirupur">Tirupur</option>
-                        </select>
-                    </div>
-                </div>
-                <button class="btn" type="submit" style="width:100%; margin-top:18px;">Create Driver Account</button>
-            </form>
-            <div id="regSuccessBox" style="display:none; text-align:center; padding:16px 0;">
-                <span class="badge" style="background:#d4edda; color:#155724; margin-bottom:12px;">Driver Registered Successfully</span>
-                <h3 style="margin:10px 0;">Driver Login Credentials</h3>
-                <div style="background:var(--paper); padding:12px; border-radius:8px; text-align:left; font-family:'IBM Plex Mono', monospace; font-size:13px; margin-bottom:16px;">
-                    <div><strong>Driver ID / Username:</strong> <span id="credUsername"></span></div>
-                    <div><strong>Password:</strong> <span id="credPassword"></span></div>
-                </div>
-                <p class="muted" style="font-size:12px; margin-bottom:14px;">Please share these credentials with the driver so they can log in via Driver Login.</p>
-                <button class="btn" type="button" id="doneRegBtn" style="width:100%;">Done</button>
-            </div>
+    <!-- DRIVERS VIEW -->
+    <div class="view" id="driversView">
+      <div class="table-header" style="padding:0 0 20px; border:none; margin-bottom:0;">
+        <h3>All Drivers</h3>
+        <div style="display:flex; gap:12px; align-items:center;">
+          <input type="text" class="search-bar" id="driverSearch" placeholder="Search drivers..." oninput="renderDriversTable()">
+          <button class="btn btn-primary" onclick="openCreateDriverModal()">+ Add Driver</button>
         </div>
+      </div>
+      <div class="table-card">
+        <table>
+          <thead>
+            <tr>
+              <th>Driver</th>
+              <th>Contact</th>
+              <th>Vehicle</th>
+              <th>Plate</th>
+              <th>Rating</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="driversTableBody"></tbody>
+        </table>
+      </div>
     </div>
 
-    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-    <script>
-        (function () {
-            "use strict";
+    <!-- RIDES VIEW -->
+    <div class="view" id="ridesView">
+      <div class="table-header" style="padding:0 0 20px; border:none;">
+        <h3>All Rides</h3>
+        <select class="search-bar" id="rideStatusFilter" onchange="loadRides()">
+          <option value="">All Statuses</option>
+          <option value="requested">Requested</option>
+          <option value="accepted">Accepted</option>
+          <option value="ongoing">Ongoing</option>
+          <option value="pending_completion">Pending Completion</option>
+          <option value="completed">Completed</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+      </div>
+      <div class="table-card">
+        <table>
+          <thead>
+            <tr><th>Rider</th><th>Driver</th><th>From → To</th><th>Fare</th><th>Status</th><th>Date</th></tr>
+          </thead>
+          <tbody id="ridesTableBody"></tbody>
+        </table>
+      </div>
+    </div>
 
-            function showMessage(message, type) {
-                var toast = document.createElement("div");
-                var closeButton = document.createElement("button");
-                toast.className = "message-toast " + (type || "");
-                toast.setAttribute("role", "status");
-                toast.appendChild(document.createTextNode(message));
-                closeButton.type = "button";
-                closeButton.setAttribute("aria-label", "Close message");
-                closeButton.textContent = "×";
-                closeButton.addEventListener("click", function () { toast.remove(); });
-                toast.appendChild(closeButton);
-                document.body.appendChild(toast);
-                window.setTimeout(function () { if (toast.isConnected) toast.remove(); }, 4500);
-            }
+    <!-- SETTINGS VIEW -->
+    <div class="view" id="settingsView">
+      <div class="chart-card" style="max-width:500px;">
+        <h3>Pricing Settings</h3>
+        <div class="form-group">
+          <label>Base Fare (₹)</label>
+          <input type="number" id="setBaseFare" value="80">
+        </div>
+        <div class="form-group">
+          <label>Price per KM (₹)</label>
+          <input type="number" id="setPricePerKm" value="18">
+        </div>
+        <div class="form-group">
+          <label>Surge Multiplier</label>
+          <input type="number" step="0.1" id="setSurge" value="1.0">
+        </div>
+        <div class="form-group">
+          <label><input type="checkbox" id="setMaintenance"> Maintenance Mode</label>
+        </div>
+        <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+      </div>
+    </div>
 
-            var apiBase = window.RANICAB_API_BASE || (window.location.port === '5000' ? window.location.origin : 'http://localhost:5000');
+  </div>
+</div>
 
-            function api(path, options) {
-                return fetch(apiBase + path, Object.assign({
-                    credentials: "include",
-                    headers: { "Content-Type": "application/json" }
-                }, options || {})).then(function (res) {
-                    return res.json().then(function (body) {
-                        if (!res.ok) throw new Error(body.error || "Request failed");
-                        return body;
-                    });
-                });
-            }
+<!-- DRIVER DETAIL MODAL -->
+<div class="modal-overlay" id="driverDetailModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Driver Details</h2>
+      <button class="modal-close" onclick="closeModal('driverDetailModal')">&times;</button>
+    </div>
+    <div class="modal-body" id="driverDetailBody"></div>
+  </div>
+</div>
 
-            var adminLoginModal = document.getElementById('adminLoginModal');
-            var adminLoginForm = document.getElementById('adminLoginForm');
-            var adminLoginError = document.getElementById('adminLoginError');
-            var adminLogoutBtn = document.getElementById('adminLogoutBtn');
+<!-- CREATE DRIVER MODAL -->
+<div class="modal-overlay" id="createDriverModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Add New Driver</h2>
+      <button class="modal-close" onclick="closeModal('createDriverModal')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <form id="createDriverForm" onsubmit="createDriver(event)">
+        <div class="form-row">
+          <div class="form-group"><label>Full Name *</label><input type="text" name="name" required></div>
+          <div class="form-group"><label>Email (credentials sent here)</label><input type="email" name="email"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Phone</label><input type="text" name="phone"></div>
+          <div class="form-group"><label>Vehicle Model</label><input type="text" name="vehicle_model" value="Sedan"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>License Plate</label><input type="text" name="license_plate"></div>
+          <div class="form-group"><label>UPI ID</label><input type="text" name="upi_id" placeholder="name@bank"></div>
+        </div>
+        <div class="form-group"><label>City</label>
+          <select name="city">
+            <option value="madurai">Madurai</option><option value="chennai">Chennai</option>
+            <option value="coimbatore">Coimbatore</option><option value="trichy">Trichy</option>
+            <option value="salem">Salem</option><option value="tirupur">Tirupur</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Profile Photo</label>
+            <div class="upload-zone" onclick="this.querySelector('input').click()">
+              <input type="file" name="profile" accept="image/*" onchange="previewUpload(this,'prevProfile')">
+              <p>📷 Click to upload</p>
+              <img class="upload-preview" id="prevProfile" style="display:none;">
+            </div>
+          </div>
+          <div class="form-group"><label>Licence Photo</label>
+            <div class="upload-zone" onclick="this.querySelector('input').click()">
+              <input type="file" name="licence" accept="image/*" onchange="previewUpload(this,'prevLicence')">
+              <p>📷 Click to upload</p>
+              <img class="upload-preview" id="prevLicence" style="display:none;">
+            </div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>RC Book</label>
+            <div class="upload-zone" onclick="this.querySelector('input').click()">
+              <input type="file" name="rc_book" accept="image/*" onchange="previewUpload(this,'prevRc')">
+              <p>📷 Click to upload</p>
+              <img class="upload-preview" id="prevRc" style="display:none;">
+            </div>
+          </div>
+          <div class="form-group"><label>Insurance</label>
+            <div class="upload-zone" onclick="this.querySelector('input').click()">
+              <input type="file" name="insurance" accept="image/*" onchange="previewUpload(this,'prevIns')">
+              <p>📷 Click to upload</p>
+              <img class="upload-preview" id="prevIns" style="display:none;">
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label><input type="checkbox" name="send_credentials" checked> Email credentials to driver</label>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%; padding:14px;">Create Driver & Send Credentials</button>
+      </form>
+    </div>
+  </div>
+</div>
 
-            var registerDriverModal = document.getElementById('registerDriverModal');
-            var registerDriverBtn = document.getElementById('registerDriverBtn');
-            var closeRegModalBtn = document.getElementById('closeRegModalBtn');
-            var registerDriverForm = document.getElementById('registerDriverForm');
-            var regSuccessBox = document.getElementById('regSuccessBox');
-            var doneRegBtn = document.getElementById('doneRegBtn');
+<!-- EMAIL COMPOSER MODAL -->
+<div class="modal-overlay" id="emailModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Send Email to Driver</h2>
+      <button class="modal-close" onclick="closeModal('emailModal')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group"><label>To</label><input type="text" id="emailTo" readonly></div>
+      <div class="form-group"><label>Subject *</label><input type="text" id="emailSubject" placeholder="Enter subject"></div>
+      <div class="form-group"><label>Message *</label><textarea id="emailBody" placeholder="Type your message..."></textarea></div>
+      <div style="display:flex; gap:8px;">
+        <button class="btn btn-primary" onclick="sendDriverEmail()" style="flex:1;">Send Email</button>
+        <button class="btn btn-secondary" onclick="sendCredentialsEmail()">Send Credentials Instead</button>
+      </div>
+    </div>
+  </div>
+</div>
 
-            var editSettingsBtn = document.getElementById('editSettingsBtn');
-            var cancelSettingsBtn = document.getElementById('cancelSettingsBtn');
-            var settingsView = document.getElementById('settingsView');
-            var settingsForm = document.getElementById('settingsForm');
+<!-- EDIT DRIVER MODAL -->
+<div class="modal-overlay" id="editDriverModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Edit Driver</h2>
+      <button class="modal-close" onclick="closeModal('editDriverModal')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="editDriverId">
+      <div class="form-row">
+        <div class="form-group"><label>Name</label><input type="text" id="editName"></div>
+        <div class="form-group"><label>Phone</label><input type="text" id="editPhone"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Email</label><input type="email" id="editEmail"></div>
+        <div class="form-group"><label>Vehicle Model</label><input type="text" id="editVehicle"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>License Plate</label><input type="text" id="editPlate"></div>
+        <div class="form-group"><label>UPI ID</label><input type="text" id="editUpi"></div>
+      </div>
+      <button class="btn btn-primary" onclick="updateDriver()" style="width:100%; padding:14px;">Save Changes</button>
+    </div>
+  </div>
+</div>
 
-            function checkAdminAuth() {
-                api('/api/admin/overview')
-                    .then(function (data) {
-                        adminLoginModal.style.display = 'none';
-                        renderOverview(data);
-                    })
-                    .catch(function () {
-                        adminLoginModal.style.display = 'flex';
-                    });
-            }
+<div id="toast"></div>
 
-            adminLoginForm.addEventListener('submit', function (e) {
-                e.preventDefault();
-                var u = document.getElementById('adminUser').value.trim();
-                var p = document.getElementById('adminPass').value;
-                api('/api/admin/login', {
-                    method: 'POST',
-                    body: JSON.stringify({ username: u, password: p })
-                }).then(function () {
-                    adminLoginError.style.display = 'none';
-                    adminLoginModal.style.display = 'none';
-                    checkAdminAuth();
-                }).catch(function (err) {
-                    adminLoginError.textContent = err.message;
-                    adminLoginError.style.display = 'block';
-                });
-            });
+<script>
+// ============ STATE ============
+let allDrivers = [];
+let allRides = [];
+let analyticsData = null;
+let currentEmailDriverId = null;
+let charts = {};
+let socket = null;
 
-            adminLogoutBtn.addEventListener('click', function () {
-                api('/api/admin/logout', { method: 'POST' })
-                    .finally(function () {
-                        window.location.href = '/';
-                    });
-            });
+// ============ AUTH ============
+async function adminLogin() {
+  const username = document.getElementById('adminUser').value;
+  const password = document.getElementById('adminPass').value;
+  try {
+    const res = await fetch('/api/admin/login', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      credentials: 'include',
+      body: JSON.stringify({username, password})
+    });
+    if (res.ok) {
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('dashboard').style.display = 'block';
+      initApp();
+    } else {
+      document.getElementById('loginError').style.display = 'block';
+    }
+  } catch(e) { showToast('Login failed', 'error'); }
+}
 
-            function renderOverview(data) {
-                if (data.revenue) {
-                    document.getElementById('revenueToday').textContent = '₹ ' + Number(data.revenue.today || 0).toLocaleString('en-IN');
-                    document.getElementById('revenueMonth').textContent = '₹ ' + Number(data.revenue.month || 0).toLocaleString('en-IN');
-                    document.getElementById('revenueAllTime').textContent = '₹ ' + Number(data.revenue.all_time || 0).toLocaleString('en-IN');
-                }
+async function adminLogout() {
+  await fetch('/api/admin/logout', {method:'POST', credentials:'include'});
+  location.reload();
+}
 
-                var rosterEl = document.getElementById('driverRosterList');
-                if (rosterEl) {
-                    rosterEl.innerHTML = '';
-                    var drivers = data.drivers || [];
-                    if (drivers.length === 0) {
-                        rosterEl.innerHTML = '<div class="row"><span class="muted">No drivers registered yet.</span></div>';
-                    } else {
-                        drivers.forEach(function (d) {
-                            var row1 = document.createElement('div');
-                            row1.className = 'row';
-                            var isOnline = d.is_online;
-                            var badge = isOnline ? '<span class="badge" style="background:#d4edda; color:#155724;">Online</span>' : '<span class="badge">Offline</span>';
-                            row1.innerHTML = '<strong>' + (d.name || 'Driver') + ' (' + (d.username || '') + ')</strong>' + badge;
+async function checkAdminSession() {
+  try {
+    const res = await fetch('/api/admin/me', {credentials:'include'});
+    if (res.ok) {
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('dashboard').style.display = 'block';
+      initApp();
+    }
+  } catch(e) {}
+}
 
-                            var row2 = document.createElement('div');
-                            row2.className = 'row';
-                            row2.innerHTML = '<span class="muted">' + (d.vehicle_model || 'Sedan') + ' · ' + (d.license_plate || 'TN-01') + ' · ' + (d.phone || '') + '</span><strong>' + (d.rating || 5.0) + ' ★</strong>';
+// ============ INIT ============
+async function initApp() {
+  connectSocket();
+  await Promise.all([loadOverview(), loadAnalytics(), loadRides(), loadSettings()]);
+  setInterval(loadAnalytics, 15000); // Auto-refresh analytics every 15s
+}
 
-                            rosterEl.appendChild(row1);
-                            rosterEl.appendChild(row2);
-                        });
-                    }
-                }
+function connectSocket() {
+  const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+  socket = io(protocol + '://' + location.hostname + ':' + location.port, {transports:['websocket','polling']});
+  socket.on('driver_status_update', (data) => {
+    loadAnalytics();
+    showToast(`Driver ${data.is_online ? 'went online' : 'went offline'}`);
+  });
+}
 
-                if (data.pricing) {
-                    document.getElementById('settingBaseFare').textContent = '₹' + (data.pricing.base_fare || 80);
-                    document.getElementById('settingPerKm').textContent = '₹' + (data.pricing.price_per_km || 18);
-                    document.getElementById('settingSurge').textContent = (data.pricing.surge_multiplier || 1.0) + 'x';
-                    document.getElementById('settingMaint').textContent = data.pricing.maintenance_mode ? 'On' : 'Off';
+// ============ VIEW SWITCH ============
+function switchView(viewId, navEl) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById(viewId).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  navEl.classList.add('active');
+}
 
-                    document.getElementById('inputBaseFare').value = data.pricing.base_fare || 80;
-                    document.getElementById('inputPerKm').value = data.pricing.price_per_km || 18;
-                    document.getElementById('inputSurge').value = data.pricing.surge_multiplier || 1.0;
-                    document.getElementById('inputMaint').value = data.pricing.maintenance_mode ? 'true' : 'false';
-                }
-            }
+// ============ LOAD OVERVIEW (drivers list) ============
+async function loadOverview() {
+  try {
+    const res = await fetch('/api/admin/overview', {credentials:'include'});
+    const data = await res.json();
+    allDrivers = data.drivers || [];
+    renderDriversTable();
+  } catch(e) { console.error(e); }
+}
 
-            // Driver registration modal
-            registerDriverBtn.addEventListener('click', function () {
-                registerDriverForm.reset();
-                registerDriverForm.style.display = 'block';
-                regSuccessBox.style.display = 'none';
-                registerDriverModal.style.display = 'flex';
-            });
-            closeRegModalBtn.addEventListener('click', function () {
-                registerDriverModal.style.display = 'none';
-            });
-            doneRegBtn.addEventListener('click', function () {
-                registerDriverModal.style.display = 'none';
-                checkAdminAuth();
-            });
+function renderDriversTable() {
+  const search = (document.getElementById('driverSearch')?.value || '').toLowerCase();
+  const filtered = allDrivers.filter(d =>
+    !search || (d.name||'').toLowerCase().includes(search) || (d.username||'').toLowerCase().includes(search) ||
+    (d.email||'').toLowerCase().includes(search) || (d.phone||'').includes(search)
+  );
+  const tbody = document.getElementById('driversTableBody');
+  if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text2);">No drivers found</td></tr>'; return; }
+  tbody.innerHTML = filtered.map(d => `
+    <tr>
+      <td style="display:flex;align-items:center;gap:10px;">
+        <img class="driver-thumb" src="${d.profile_image || '/src/default-avatar.png'}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 40 40%22><rect width=%2240%22 height=%2240%22 fill=%22%23333%22/><text x=%2220%22 y=%2225%22 text-anchor=%22middle%22 fill=%22%23999%22 font-size=%2216%22>D</text></svg>'">
+        <div><div style="font-weight:600;">${d.name||'Driver'}</div><div style="font-size:12px;color:var(--text2);">@${d.username||''}</div></div>
+      </td>
+      <td><div>${d.email||'—'}</div><div style="font-size:12px;color:var(--text2);">${d.phone||'—'}</div></td>
+      <td>${d.vehicle_model||'—'}</td>
+      <td>${d.license_plate||'—'}</td>
+      <td>⭐ ${d.rating||5.0}</td>
+      <td><span class="status-badge ${d.is_online?'status-online':'status-offline'}">${d.is_online?'Online':'Offline'}</span></td>
+      <td>
+        <div class="btn-group">
+          <button class="btn btn-secondary btn-sm" onclick="viewDriver('${d.id}')">View</button>
+          <button class="btn btn-secondary btn-sm" onclick="openEmailModal('${d.id}')">Email</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteDriver('${d.id}')">Del</button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
 
-            registerDriverForm.addEventListener('submit', function (e) {
-                e.preventDefault();
-                var payload = {
-                    name: document.getElementById('drvName').value.trim(),
-                    phone: document.getElementById('drvPhone').value.trim(),
-                    email: document.getElementById('drvEmail').value.trim(),
-                    vehicle_model: document.getElementById('drvModel').value,
-                    license_plate: document.getElementById('drvPlate').value.trim(),
-                    upi_id: document.getElementById('drvUpi').value.trim(),
-                    city: document.getElementById('drvCity').value
-                };
+// ============ ANALYTICS ============
+async function loadAnalytics() {
+  try {
+    const res = await fetch('/api/admin/analytics', {credentials:'include'});
+    analyticsData = await res.json();
+    renderAnalytics();
+  } catch(e) { console.error(e); }
+}
 
-                api('/api/admin/drivers', {
-                    method: 'POST',
-                    body: JSON.stringify(payload)
-                }).then(function (res) {
-                    registerDriverForm.style.display = 'none';
-                    document.getElementById('credUsername').textContent = res.credentials.username;
-                    document.getElementById('credPassword').textContent = res.credentials.password;
-                    regSuccessBox.style.display = 'block';
-                }).catch(function (err) {
-                    showMessage('Error creating driver: ' + err.message, "error");
-                });
-            });
+function renderAnalytics() {
+  const s = analyticsData.summary;
+  document.getElementById('statOnline').textContent = s.online_drivers;
+  document.getElementById('statOnlineTotal').textContent = `of ${s.total_drivers} total`;
+  document.getElementById('statRiders').textContent = s.total_riders;
+  document.getElementById('statTodayRides').textContent = s.today_rides;
+  document.getElementById('statTodayRevenue').textContent = '₹' + s.today_revenue.toLocaleString();
+  document.getElementById('statMonthRevenue').textContent = '₹' + s.month_revenue.toLocaleString();
+  document.getElementById('statAllRevenue').textContent = '₹' + s.all_time_revenue.toLocaleString();
 
-            // Settings edit
-            editSettingsBtn.addEventListener('click', function () {
-                settingsView.style.display = 'none';
-                settingsForm.style.display = 'block';
-                editSettingsBtn.style.display = 'none';
-            });
-            cancelSettingsBtn.addEventListener('click', function () {
-                settingsForm.style.display = 'none';
-                settingsView.style.display = 'grid';
-                editSettingsBtn.style.display = 'inline-flex';
-            });
-            settingsForm.addEventListener('submit', function (e) {
-                e.preventDefault();
-                var payload = {
-                    base_fare: parseFloat(document.getElementById('inputBaseFare').value),
-                    price_per_km: parseFloat(document.getElementById('inputPerKm').value),
-                    surge_multiplier: parseFloat(document.getElementById('inputSurge').value),
-                    maintenance_mode: document.getElementById('inputMaint').value === 'true'
-                };
-                api('/api/admin/settings', {
-                    method: 'POST',
-                    body: JSON.stringify(payload)
-                }).then(function (res) {
-                    showMessage('Settings updated successfully', "success");
-                    settingsForm.style.display = 'none';
-                    settingsView.style.display = 'grid';
-                    editSettingsBtn.style.display = 'inline-flex';
-                    checkAdminAuth();
-                }).catch(function (err) {
-                    showMessage('Could not update settings: ' + err.message, "error");
-                });
-            });
+  // Online drivers grid
+  const grid = document.getElementById('onlineDriversGrid');
+  const onlineList = analyticsData.online_drivers_list || [];
+  document.getElementById('onlineCount').textContent = `(${onlineList.length})`;
+  if (!onlineList.length) {
+    grid.innerHTML = '<p style="color:var(--text2);">No drivers currently online.</p>';
+  } else {
+    grid.innerHTML = onlineList.map(d => `
+      <div class="online-card">
+        <img src="${d.profile_image || ''}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 48 48%22><rect width=%2248%22 height=%2248%22 fill=%22%23333%22/></svg>'">
+        <div class="info" style="flex:1;">
+          <h4>${d.name}</h4>
+          <p>${d.vehicle_model} • ${d.license_plate}</p>
+          <p>⭐ ${d.rating} • ${d.phone || 'No phone'}</p>
+        </div>
+        <span class="badge">LIVE</span>
+      </div>
+    `).join('');
+  }
 
-            checkAdminAuth();
+  renderCharts();
+}
 
-            // Socket.IO updates
-            var socket = window.io && io(apiBase, { withCredentials: true });
-            if (socket) {
-                socket.on('ride_updated', function () {
-                    checkAdminAuth();
-                });
-            }
+function renderCharts() {
+  Chart.defaults.color = '#9ca3af';
+  Chart.defaults.borderColor = '#2e3344';
 
-            setInterval(checkAdminAuth, 10000);
+  // Weekly chart (bar + line)
+  if (charts.weekly) charts.weekly.destroy();
+  const wctx = document.getElementById('weeklyChart').getContext('2d');
+  charts.weekly = new Chart(wctx, {
+    type: 'bar',
+    data: {
+      labels: analyticsData.weekly_chart.map(d => d.label),
+      datasets: [
+        {label:'Rides', data: analyticsData.weekly_chart.map(d=>d.rides), backgroundColor:'#3b82f6', yAxisID:'y'},
+        {label:'Revenue (₹)', type:'line', data: analyticsData.weekly_chart.map(d=>d.revenue), borderColor:'#e8a33d', backgroundColor:'#e8a33d', tension:0.3, yAxisID:'y1'}
+      ]
+    },
+    options: {responsive:true, scales:{
+      y:{position:'left', title:{display:true,text:'Rides'}},
+      y1:{position:'right', title:{display:true,text:'₹'}, grid:{drawOnChartArea:false}}
+    }}
+  });
 
-        }());
-    </script>
+  // Status doughnut
+  if (charts.status) charts.status.destroy();
+  const sb = analyticsData.status_breakdown;
+  const sctx = document.getElementById('statusChart').getContext('2d');
+  charts.status = new Chart(sctx, {
+    type: 'doughnut',
+    data: {
+      labels: Object.keys(sb),
+      datasets: [{data: Object.values(sb), backgroundColor:['#3b82f6','#f59e0b','#8b5cf6','#06b6d4','#22c55e','#ef4444']}]
+    },
+    options: {responsive:true, plugins:{legend:{position:'bottom'}}}
+  });
+
+  // Monthly revenue trend
+  if (charts.monthly) charts.monthly.destroy();
+  const mctx = document.getElementById('monthlyChart').getContext('2d');
+  charts.monthly = new Chart(mctx, {
+    type: 'line',
+    data: {
+      labels: analyticsData.monthly_chart.map(d=>d.label),
+      datasets: [{label:'Revenue (₹)', data: analyticsData.monthly_chart.map(d=>d.revenue), borderColor:'#e8a33d', backgroundColor:'rgba(232,163,61,0.1)', fill:true, tension:0.3}]
+    },
+    options: {responsive:true, scales:{x:{ticks:{maxTicksLimit:10}}}}
+  });
+
+  // Hourly chart
+  if (charts.hourly) charts.hourly.destroy();
+  const hctx = document.getElementById('hourlyChart').getContext('2d');
+  charts.hourly = new Chart(hctx, {
+    type: 'bar',
+    data: {
+      labels: analyticsData.hourly_chart.map(d=>d.hour),
+      datasets: [{label:'Rides', data: analyticsData.hourly_chart.map(d=>d.rides), backgroundColor:'#8b5cf6'}]
+    },
+    options: {responsive:true, scales:{x:{ticks:{maxTicksLimit:12}}}}
+  });
+
+  // Top drivers
+  if (charts.topDrivers) charts.topDrivers.destroy();
+  const td = analyticsData.top_drivers;
+  const tctx = document.getElementById('topDriversChart').getContext('2d');
+  charts.topDrivers = new Chart(tctx, {
+    type: 'bar',
+    data: {
+      labels: td.length ? td.map(d=>d.name) : ['No data'],
+      datasets: [{label:'Earnings (₹)', data: td.length ? td.map(d=>d.earnings) : [0], backgroundColor:'#22c55e'}]
+    },
+    options: {indexAxis:'y', responsive:true}
+  });
+}
+
+// ============ DRIVER DETAIL ============
+async function viewDriver(driverId) {
+  try {
+    const res = await fetch(`/api/admin/drivers/${driverId}`, {credentials:'include'});
+    const data = await res.json();
+    const d = data.driver;
+    const st = data.stats;
+    const imgPlaceholder = 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 160 160%22><rect width=%22160%22 height=%22160%22 fill=%22%23333%22/><text x=%2280%22 y=%2288%22 text-anchor=%22middle%22 fill=%22%23666%22 font-size=%2214%22>No Image</text></svg>';
+    document.getElementById('driverDetailBody').innerHTML = `
+      <div class="driver-detail-header">
+        <img class="profile" src="${d.profile_image||imgPlaceholder}" onerror="this.src='${imgPlaceholder}'">
+        <div class="info">
+          <h2>${d.name}</h2>
+          <p>📧 ${d.email||'—'}</p>
+          <p>📱 ${d.phone||'—'}</p>
+          <p>👤 @${d.username}</p>
+          <p>🚗 ${d.vehicle_model} | ${d.license_plate}</p>
+          <p>💳 UPI: ${d.upi_id||'Not set'}</p>
+          <p><span class="status-badge ${d.is_online?'status-online':'status-offline'}">${d.is_online?'ONLINE':'OFFLINE'}</span></p>
+        </div>
+      </div>
+      <div class="driver-stats">
+        <div class="driver-stat"><div class="val">${st.total_rides}</div><div class="lbl">Completed Rides</div></div>
+        <div class="driver-stat"><div class="val">₹${st.total_earnings.toLocaleString()}</div><div class="lbl">Total Earnings</div></div>
+        <div class="driver-stat"><div class="val">⭐ ${st.avg_rating}</div><div class="lbl">Avg Rating</div></div>
+      </div>
+      <h3 style="margin-bottom:16px;font-size:16px;">Documents & Images</h3>
+      <div class="image-gallery">
+        ${renderImageItem('Profile Photo', d.profile_image, driverId, 'profile', imgPlaceholder)}
+        ${renderImageItem('Licence', d.licence_image, driverId, 'licence', imgPlaceholder)}
+        ${renderImageItem('RC Book', d.rc_book_image, driverId, 'rc_book', imgPlaceholder)}
+        ${renderImageItem('Insurance', d.insurance_image, driverId, 'insurance', imgPlaceholder)}
+      </div>
+      <div style="margin-top:24px; display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="openEmailModal('${driverId}')">📧 Send Email</button>
+        <button class="btn btn-secondary" onclick="sendCredentials('${driverId}')">🔑 Send Credentials</button>
+        <button class="btn btn-secondary" onclick="openEditModal('${driverId}')">✏️ Edit</button>
+      </div>
+      ${st.recent_rides && st.recent_rides.length ? `
+        <h3 style="margin:24px 0 12px;font-size:16px;">Recent Rides</h3>
+        <table style="font-size:13px;">
+          <thead><tr><th>From</th><th>To</th><th>Fare</th><th>Status</th><th>Date</th></tr></thead>
+          <tbody>
+            ${st.recent_rides.map(r=>`<tr>
+              <td>${r.pickup_address||'—'}</td><td>${r.dropoff_address||'—'}</td>
+              <td>₹${r.fare||0}</td><td>${r.status}</td><td>${r.created_at?new Date(r.created_at).toLocaleDateString():'—'}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>` : ''}
+    `;
+    openModal('driverDetailModal');
+  } catch(e) { showToast('Failed to load driver', 'error'); }
+}
+
+function renderImageItem(label, url, driverId, type, placeholder) {
+  return `
+    <div class="image-item">
+      <div class="img-wrap">
+        ${url ? `<img src="${url}" onerror="this.parentNode.innerHTML='<span style=\\'color:#666;font-size:12px\\'>Failed to load</span>'">` : `<span style="color:#666;font-size:12px;">Not uploaded</span>`}
+      </div>
+      <div class="img-label">
+        <span>${label}</span>
+        <label style="cursor:pointer;color:var(--accent);font-size:12px;">
+          ${url ? 'Change' : 'Upload'}
+          <input type="file" accept="image/*" style="display:none;" onchange="uploadImage('${driverId}','${type}',this)">
+        </label>
+      </div>
+    </div>
+  `;
+}
+
+// ============ UPLOAD IMAGE ============
+async function uploadImage(driverId, type, input) {
+  if (!input.files[0]) return;
+  const formData = new FormData();
+  formData.append('file', input.files[0]);
+  formData.append('type', type);
+  try {
+    const res = await fetch(`/api/admin/drivers/${driverId}/upload`, {
+      method:'POST', credentials:'include', body: formData
+    });
+    if (res.ok) {
+      showToast(`${type} image uploaded successfully`);
+      viewDriver(driverId);
+      loadOverview();
+    } else { showToast('Upload failed', 'error'); }
+  } catch(e) { showToast('Upload error', 'error'); }
+}
+
+// ============ CREATE DRIVER ============
+function openCreateDriverModal() {
+  document.getElementById('createDriverForm').reset();
+  ['prevProfile','prevLicence','prevRc','prevIns'].forEach(id => { document.getElementById(id).style.display='none'; });
+  openModal('createDriverModal');
+}
+
+function previewUpload(input, previewId) {
+  const file = input.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = (e) => { const img = document.getElementById(previewId); img.src = e.target.result; img.style.display='block'; };
+    reader.readAsDataURL(file);
+  }
+}
+
+async function createDriver(e) {
+  e.preventDefault();
+  const form = document.getElementById('createDriverForm');
+  const formData = new FormData(form);
+  try {
+    const res = await fetch('/api/admin/drivers', {method:'POST', credentials:'include', body: formData});
+    const data = await res.json();
+    if (res.ok) {
+      showToast(`Driver created! ${data.email_sent ? 'Credentials emailed.' : 'Email not sent.'}`);
+      closeModal('createDriverModal');
+      await loadOverview();
+      await loadAnalytics();
+    } else {
+      showToast(data.error || 'Failed to create driver', 'error');
+    }
+  } catch(e) { showToast('Error creating driver', 'error'); }
+}
+
+// ============ EDIT DRIVER ============
+async function openEditModal(driverId) {
+  closeModal('driverDetailModal');
+  try {
+    const res = await fetch(`/api/admin/drivers/${driverId}`, {credentials:'include'});
+    const data = await res.json();
+    const d = data.driver;
+    document.getElementById('editDriverId').value = driverId;
+    document.getElementById('editName').value = d.name||'';
+    document.getElementById('editPhone').value = d.phone||'';
+    document.getElementById('editEmail').value = d.email||'';
+    document.getElementById('editVehicle').value = d.vehicle_model||'';
+    document.getElementById('editPlate').value = d.license_plate||'';
+    document.getElementById('editUpi').value = d.upi_id||'';
+    openModal('editDriverModal');
+  } catch(e) { showToast('Failed to load driver', 'error'); }
+}
+
+async function updateDriver() {
+  const driverId = document.getElementById('editDriverId').value;
+  const payload = {
+    name: document.getElementById('editName').value,
+    phone: document.getElementById('editPhone').value,
+    email: document.getElementById('editEmail').value,
+    vehicle_model: document.getElementById('editVehicle').value,
+    license_plate: document.getElementById('editPlate').value,
+    upi_id: document.getElementById('editUpi').value,
+  };
+  try {
+    const res = await fetch(`/api/admin/drivers/${driverId}`, {
+      method:'PUT', headers:{'Content-Type':'application/json'}, credentials:'include', body:JSON.stringify(payload)
+    });
+    if (res.ok) {
+      showToast('Driver updated successfully');
+      closeModal('editDriverModal');
+      await loadOverview();
+    } else { showToast('Update failed', 'error'); }
+  } catch(e) { showToast('Error', 'error'); }
+}
+
+// ============ DELETE DRIVER ============
+async function deleteDriver(driverId) {
+  if (!confirm('Are you sure you want to delete this driver? This cannot be undone.')) return;
+  try {
+    const res = await fetch(`/api/admin/drivers/${driverId}`, {method:'DELETE', credentials:'include'});
+    if (res.ok) { showToast('Driver deleted'); await loadOverview(); }
+    else { const d = await res.json(); showToast(d.error||'Failed', 'error'); }
+  } catch(e) { showToast('Error', 'error'); }
+}
+
+// ============ EMAIL ============
+function openEmailModal(driverId) {
+  currentEmailDriverId = driverId;
+  const driver = allDrivers.find(d => d.id === driverId);
+  document.getElementById('emailTo').value = driver ? (driver.email||driver.username||'') : '';
+  document.getElementById('emailSubject').value = '';
+  document.getElementById('emailBody').value = '';
+  closeModal('driverDetailModal');
+  openModal('emailModal');
+}
+
+async function sendDriverEmail() {
+  const subject = document.getElementById('emailSubject').value.trim();
+  const body = document.getElementById('emailBody').value.trim();
+  if (!subject || !body) { showToast('Subject and message required', 'error'); return; }
+  try {
+    const res = await fetch(`/api/admin/drivers/${currentEmailDriverId}/send-mail`, {
+      method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include',
+      body: JSON.stringify({subject, body})
+    });
+    const data = await res.json();
+    if (res.ok) { showToast('Email sent to driver'); closeModal('emailModal'); }
+    else { showToast(data.error||'Failed', 'error'); }
+  } catch(e) { showToast('Error sending email', 'error'); }
+}
+
+async function sendCredentialsEmail() {
+  if (!currentEmailDriverId) return;
+  if (!confirm('This will RESET the driver password and email new credentials. Continue?')) return;
+  try {
+    const res = await fetch(`/api/admin/drivers/${currentEmailDriverId}/send-credentials`, {
+      method:'POST', credentials:'include'
+    });
+    const data = await res.json();
+    if (res.ok) { showToast('New credentials sent to driver email'); closeModal('emailModal'); }
+    else { showToast(data.error||'Failed', 'error'); }
+  } catch(e) { showToast('Error', 'error'); }
+}
+
+async function sendCredentials(driverId) {
+  if (!confirm('Reset password and send new credentials to driver?')) return;
+  try {
+    const res = await fetch(`/api/admin/drivers/${driverId}/send-credentials`, {method:'POST', credentials:'include'});
+    const data = await res.json();
+    if (res.ok) { showToast('Credentials sent!'); }
+    else { showToast(data.error||'Failed', 'error'); }
+  } catch(e) { showToast('Error', 'error'); }
+}
+
+// ============ RIDES ============
+async function loadRides() {
+  const status = document.getElementById('rideStatusFilter')?.value || '';
+  try {
+    const res = await fetch(`/api/admin/rides${status ? '?status='+status : ''}`, {credentials:'include'});
+    const data = await res.json();
+    allRides = data.rides || [];
+    const tbody = document.getElementById('ridesTableBody');
+    if (!allRides.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text2);">No rides found</td></tr>'; return; }
+    tbody.innerHTML = allRides.map(r => `
+      <tr>
+        <td>${r.rider_name||'—'}<br><span style="font-size:12px;color:var(--text2);">${r.rider_phone||''}</span></td>
+        <td>${r.driver_name||'—'}</td>
+        <td>${r.pickup_address||'—'} → ${r.dropoff_address||'—'}</td>
+        <td>₹${r.fare||0}</td>
+        <td><span class="status-badge" style="background:var(--surface2);color:var(--text);">${r.status}</span></td>
+        <td>${r.created_at?new Date(r.created_at).toLocaleString():'—'}</td>
+      </tr>
+    `).join('');
+  } catch(e) { console.error(e); }
+}
+
+// ============ SETTINGS ============
+async function loadSettings() {
+  try {
+    const res = await fetch('/api/admin/settings', {credentials:'include'});
+    const data = await res.json();
+    const s = data.settings || {};
+    if (document.getElementById('setBaseFare')) {
+      document.getElementById('setBaseFare').value = s.base_fare || 80;
+      document.getElementById('setPricePerKm').value = s.price_per_km || 18;
+      document.getElementById('setSurge').value = s.surge_multiplier || 1.0;
+      document.getElementById('setMaintenance').checked = s.maintenance_mode || false;
+    }
+  } catch(e) {}
+}
+
+async function saveSettings() {
+  const payload = {
+    base_fare: parseFloat(document.getElementById('setBaseFare').value),
+    price_per_km: parseFloat(document.getElementById('setPricePerKm').value),
+    surge_multiplier: parseFloat(document.getElementById('setSurge').value),
+    maintenance_mode: document.getElementById('setMaintenance').checked
+  };
+  try {
+    await fetch('/api/admin/settings', {
+      method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body:JSON.stringify(payload)
+    });
+    showToast('Settings saved');
+  } catch(e) { showToast('Error', 'error'); }
+}
+
+// ============ UTILS ============
+function openModal(id) { document.getElementById(id).classList.add('active'); }
+function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+function showToast(msg, type) {
+  const toast = document.createElement('div');
+  toast.className = 'toast-msg' + (type==='error'?' error':'');
+  toast.textContent = msg;
+  document.getElementById('toast').appendChild(toast);
+  setTimeout(() => toast.remove(), 4000);
+}
+
+// Close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.classList.remove('active'); });
+});
+
+// Enter key on login
+document.getElementById('adminPass').addEventListener('keypress', (e) => { if (e.key==='Enter') adminLogin(); });
+
+// Init
+checkAdminSession();
+</script>
+
+<!-- Socket.IO client -->
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 </body>
-
 </html>

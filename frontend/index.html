@@ -1524,7 +1524,7 @@
                 </span>
                 Rani<span class="go">Cab</span>
             </a>
-            <nav class="primary">                
+            <nav class="primary">
                 <a href="#home" data-route="home" class="active" data-public-menu>Home</a>
                 <a href="#oneway" data-route="oneway" data-public-menu>Oneway Trip</a>
                 <a href="#hourly" data-route="hourly" data-public-menu>Hourly Rental</a>
@@ -1576,7 +1576,9 @@
                             drivers and zero cancellation drama — book in under a minute.</p>
                         <div class="hero-cta-row">
                             <a href="#oneway" data-route="oneway" class="btn btn-primary">Book a Ride</a>
-                            <button class="btn btn-outline" data-open-login data-auth-guest>Drive with Rani Cab</button>
+                            <a class="btn btn-outline"
+                                href="https://docs.google.com/forms/d/e/1FAIpQLSeBtGVgzs9idbmX-co1NQDyqjYaSqZCsXkfcr2iLbjQrPIr3w/viewform?usp=publish-editor"
+                                target="_blank">Drive with Rani Cab</a>
                         </div>
                         <div class="trust-row">
                             <div class="trust-item"><svg viewBox="0 0 24 24" fill="none">
@@ -2749,7 +2751,7 @@
                 var cities = Object.keys(cityTowns).sort();
                 var current = preferredCity || select.value;
                 select.innerHTML = "";
-                cities.forEach(function(city) {
+                cities.forEach(function (city) {
                     var option = document.createElement("option");
                     option.value = city;
                     option.textContent = city;
@@ -2767,7 +2769,7 @@
                 var city = citySelect.value;
                 var towns = getTownsForCity(city);
                 townSelect.innerHTML = "";
-                towns.forEach(function(town) {
+                towns.forEach(function (town) {
                     var option = document.createElement("option");
                     option.value = town;
                     option.textContent = town;
@@ -2791,10 +2793,10 @@
                     ["ow-drop-city", "ow-drop-town"],
                     ["hp-city", "hp-town"]
                 ];
-                pairs.forEach(function(pair) {
+                pairs.forEach(function (pair) {
                     var citySelect = document.getElementById(pair[0]);
                     if (!citySelect) return;
-                    citySelect.addEventListener("change", function() {
+                    citySelect.addEventListener("change", function () {
                         populateTownSelect(pair[0], pair[1]);
                         if (pair[0] === "ow-pickup-city" || pair[0] === "ow-drop-city") {
                             calculateOnewayFare();
@@ -2802,7 +2804,7 @@
                     });
                 });
 
-                document.querySelectorAll("#ow-pickup-town, #ow-drop-town").forEach(function(select) {
+                document.querySelectorAll("#ow-pickup-town, #ow-drop-town").forEach(function (select) {
                     select.addEventListener("change", calculateOnewayFare);
                 });
             }

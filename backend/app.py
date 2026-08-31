@@ -20,6 +20,14 @@ from werkzeug.security import check_password_hash, generate_password_hash
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FRONTEND_DIR = os.path.join(PROJECT_DIR, "frontend")
 ASSETS_DIR = os.path.join(PROJECT_DIR, "src")
+UPLOAD_DIR = os.path.join(PROJECT_DIR, "uploads")
+
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+os.makedirs(FRONTEND_DIR, exist_ok=True)
+
+ALLOWED_IMAGE_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
+IMAGE_TYPES = {"profile", "licence", "rc_book", "insurance", "vehicle"}
+
 load_dotenv(os.path.join(PROJECT_DIR, ".env"))
 
 app = Flask(__name__)
@@ -120,7 +128,6 @@ ALLOWED_COMPLETION_STATUSES = ["pending_completion", "completed"]
 # EXPANDED TAMIL NADU CITY / TOWN DATABASE
 # ============================================================
 TN_CITIES = {
-    # --- Major Cities ---
     "madurai": {"lng": 78.1198, "lat": 9.9252, "name": "Madurai"},
     "chennai": {"lng": 80.2707, "lat": 13.0827, "name": "Chennai"},
     "coimbatore": {"lng": 76.9558, "lat": 11.0168, "name": "Coimbatore"},
@@ -139,16 +146,12 @@ TN_CITIES = {
     "namakkal": {"lng": 78.1700, "lat": 11.2300, "name": "Namakkal"},
     "hosur": {"lng": 77.8300, "lat": 12.7200, "name": "Hosur"},
     "cuddalore": {"lng": 79.7500, "lat": 11.7500, "name": "Cuddalore"},
-
-    # --- Towns & Sub‑localities (Madurai region) ---
     "melur": {"lng": 78.3393, "lat": 10.0326, "name": "Melur"},
     "avaniyapuram": {"lng": 78.1200, "lat": 9.9200, "name": "Avaniyapuram"},
     "thiruparankundram": {"lng": 78.0750, "lat": 9.8800, "name": "Thiruparankundram"},
     "alagarkoil": {"lng": 78.1400, "lat": 10.0500, "name": "Alagarkoil"},
     "vadipatti": {"lng": 78.0500, "lat": 10.0800, "name": "Vadipatti"},
     "usilampatti": {"lng": 77.9500, "lat": 10.1700, "name": "Usilampatti"},
-
-    # --- Chennai suburbs ---
     "t nagar": {"lng": 80.2400, "lat": 13.0400, "name": "T Nagar"},
     "adyar": {"lng": 80.2600, "lat": 13.0100, "name": "Adyar"},
     "velachery": {"lng": 80.2300, "lat": 12.9800, "name": "Velachery"},
@@ -156,87 +159,53 @@ TN_CITIES = {
     "mylapore": {"lng": 80.2700, "lat": 13.0400, "name": "Mylapore"},
     "egmore": {"lng": 80.2600, "lat": 13.0700, "name": "Egmore"},
     "porur": {"lng": 80.1600, "lat": 13.0400, "name": "Porur"},
-
-    # --- Coimbatore suburbs ---
     "peelamedu": {"lng": 77.0100, "lat": 11.0300, "name": "Peelamedu"},
     "saravanampatti": {"lng": 77.0000, "lat": 11.0700, "name": "Saravanampatti"},
     "gandhipuram": {"lng": 76.9600, "lat": 11.0200, "name": "Gandhipuram"},
     "ramanathapuram": {"lng": 76.9500, "lat": 11.0000, "name": "Ramanathapuram"},
     "singanallur": {"lng": 77.0200, "lat": 11.0100, "name": "Singanallur"},
-
-    # --- Trichy suburbs ---
     "srirangam": {"lng": 78.7000, "lat": 10.8700, "name": "Srirangam"},
     "thillai nagar": {"lng": 78.7200, "lat": 10.8000, "name": "Thillai Nagar"},
     "kajamalai": {"lng": 78.6800, "lat": 10.7600, "name": "Kajamalai"},
     "kallakudi": {"lng": 78.8400, "lat": 10.9700, "name": "Kallakudi"},
-
-    # --- Salem suburbs ---
     "gugai": {"lng": 78.1500, "lat": 11.6700, "name": "Gugai"},
     "muthunaickenpatti": {"lng": 78.1300, "lat": 11.6400, "name": "Muthunaickenpatti"},
     "jarugumalai": {"lng": 78.2000, "lat": 11.6000, "name": "Jarugumalai"},
     "kitchipalayam": {"lng": 78.1000, "lat": 11.6800, "name": "Kitchipalayam"},
-
-    # --- Tirupur suburbs ---
     "avai shanmugam nagar": {"lng": 77.3400, "lat": 11.1100, "name": "Avai Shanmugam Nagar"},
     "kangeyam": {"lng": 77.5500, "lat": 11.0200, "name": "Kangeyam"},
     "uttukkuli": {"lng": 77.4300, "lat": 11.1700, "name": "Uttukkuli"},
-
-    # --- Erode suburbs ---
     "perundurai": {"lng": 77.5800, "lat": 11.2700, "name": "Perundurai"},
     "bhavani": {"lng": 77.6800, "lat": 11.4500, "name": "Bhavani"},
     "sathyamangalam": {"lng": 77.2400, "lat": 11.5100, "name": "Sathyamangalam"},
-
-    # --- Vellore suburbs ---
     "katpadi": {"lng": 79.1600, "lat": 12.9700, "name": "Katpadi"},
     "gudiyatham": {"lng": 79.0700, "lat": 12.9400, "name": "Gudiyatham"},
     "ambur": {"lng": 78.7100, "lat": 12.7900, "name": "Ambur"},
-
-    # --- Kanchipuram suburbs ---
     "chengalpattu": {"lng": 79.7000, "lat": 12.6900, "name": "Chengalpattu"},
     "uthiramerur": {"lng": 79.7600, "lat": 12.6200, "name": "Uthiramerur"},
-
-    # --- Thanjavur suburbs ---
     "kumbakonam": {"lng": 79.3800, "lat": 10.9600, "name": "Kumbakonam"},
     "pattukkottai": {"lng": 79.3200, "lat": 10.4300, "name": "Pattukkottai"},
     "papanasam": {"lng": 79.2800, "lat": 10.9300, "name": "Papanasam"},
-
-    # --- Dindigul suburbs ---
     "palani": {"lng": 77.5200, "lat": 10.4500, "name": "Palani"},
     "oddanchatram": {"lng": 77.7400, "lat": 10.4900, "name": "Oddanchatram"},
     "natham": {"lng": 78.2300, "lat": 10.2200, "name": "Natham"},
-
-    # --- Tuticorin suburbs ---
     "kovilpatti": {"lng": 77.8700, "lat": 9.1700, "name": "Kovilpatti"},
     "sattankulam": {"lng": 78.0300, "lat": 8.4500, "name": "Sattankulam"},
-
-    # --- Kanyakumari suburbs ---
     "nagercoil": {"lng": 77.4300, "lat": 8.1700, "name": "Nagercoil"},
     "marthandam": {"lng": 77.2300, "lat": 8.3100, "name": "Marthandam"},
     "padmanabhapuram": {"lng": 77.3300, "lat": 8.2400, "name": "Padmanabhapuram"},
-
-    # --- Tirunelveli suburbs ---
     "palayamkottai": {"lng": 77.7200, "lat": 8.7200, "name": "Palayamkottai"},
     "ambasamudram": {"lng": 77.4600, "lat": 8.7000, "name": "Ambasamudram"},
     "tenkasi": {"lng": 77.3000, "lat": 8.9600, "name": "Tenkasi"},
-
-    # --- Karur suburbs ---
     "kulithalai": {"lng": 78.4100, "lat": 10.9300, "name": "Kulithalai"},
     "krishnarayapuram": {"lng": 78.1300, "lat": 10.8800, "name": "Krishnarayapuram"},
-
-    # --- Namakkal suburbs ---
     "paramathi velur": {"lng": 78.0600, "lat": 11.3500, "name": "Paramathi Velur"},
     "rasipuram": {"lng": 78.1700, "lat": 11.4600, "name": "Rasipuram"},
-
-    # --- Hosur suburbs ---
     "denkanikottai": {"lng": 77.7800, "lat": 12.5300, "name": "Denkanikottai"},
     "thally": {"lng": 77.6900, "lat": 12.6200, "name": "Thally"},
-
-    # --- Cuddalore suburbs ---
     "chidambaram": {"lng": 79.6900, "lat": 11.4000, "name": "Chidambaram"},
     "panruti": {"lng": 79.5500, "lat": 11.7700, "name": "Panruti"},
     "neyveli": {"lng": 79.5100, "lat": 11.6100, "name": "Neyveli"},
-
-    # --- Airports (keep existing) ---
     "madurai airport": {"lng": 78.0934, "lat": 9.8345, "name": "Madurai Airport (IXM)"},
     "madurai airport (ixm)": {"lng": 78.0934, "lat": 9.8345, "name": "Madurai Airport (IXM)"},
     "chennai airport": {"lng": 80.1709, "lat": 12.9941, "name": "Chennai Airport (MAA)"},
@@ -266,20 +235,25 @@ def resolve_location(address, lng=None, lat=None, default_city="madurai"):
 def frontend_index():
     return send_from_directory(FRONTEND_DIR, "index.html")
 
+@app.get("/admin")
+def admin_page():
+    return send_from_directory(FRONTEND_DIR, "admin.html")
 
 @app.get("/frontend/<path:filename>")
 def frontend_file(filename):
     return send_from_directory(FRONTEND_DIR, filename)
 
-
 @app.get("/src/<path:filename>")
 def frontend_asset(filename):
     return send_from_directory(ASSETS_DIR, filename)
 
+@app.get("/uploads/<path:filename>")
+def serve_upload(filename):
+    return send_from_directory(UPLOAD_DIR, filename)
+
 
 def now():
     return datetime.now(timezone.utc).replace(tzinfo=None)
-
 
 def oid(value):
     from bson import ObjectId
@@ -287,7 +261,6 @@ def oid(value):
         return ObjectId(value) if value else None
     except Exception:
         return None
-
 
 def serialize(doc):
     if not doc:
@@ -304,10 +277,8 @@ def serialize(doc):
             doc[key] = str(value)
     return doc
 
-
 def point(lng, lat):
     return {"type": "Point", "coordinates": [float(lng), float(lat)]}
-
 
 def send_mail(to_email, subject, body, html_body=None):
     sender_email = os.getenv("SENDER_EMAIL") or os.getenv("sender_email")
@@ -334,7 +305,6 @@ def send_mail(to_email, subject, body, html_body=None):
         app.logger.warning("SMTP failed: %s", exc)
         return False
 
-
 def send_reset_otp(email, user, otp):
     name = user.get("name", "RaniCab rider")
     text_body = f"Hi {name},\n\nYour RaniCab password reset OTP is {otp}. It expires in 10 minutes.\n\nIf you did not request this, please ignore this email.\n\nRaniCab"
@@ -357,7 +327,6 @@ def send_reset_otp(email, user, otp):
     """
     return send_mail(email, "Your RaniCab password reset OTP", text_body, html_body)
 
-
 def send_completion_otp_email(rider_email, rider_name, otp):
     subject = "RaniCab Trip Completion OTP"
     text_body = f"Hi {rider_name},\n\nYour driver has completed your trip. Please enter this OTP in your app to confirm: {otp}\n\nThis OTP expires in 10 minutes.\n\nRaniCab"
@@ -379,7 +348,6 @@ def send_completion_otp_email(rider_email, rider_name, otp):
     """
     return send_mail(rider_email, subject, text_body, html_body)
 
-
 def create_or_update_google_user(profile, phone=""):
     email = profile["email"].lower()
     name = profile.get("name") or email.split("@")[0]
@@ -395,14 +363,12 @@ def create_or_update_google_user(profile, phone=""):
     user["_id"] = result.inserted_id
     return user
 
-
 def current_user():
     user_id = session.get("user_id")
     if not user_id:
         return None
     user = users.find_one({"_id": oid(user_id)})
     return user
-
 
 def require_role(*roles):
     def decorator(fn):
@@ -415,7 +381,6 @@ def require_role(*roles):
             return fn(*args, **kwargs)
         return wrapper
     return decorator
-
 
 def admin_required(fn):
     @wraps(fn)
@@ -430,14 +395,12 @@ def admin_required(fn):
 def health():
     return {"status": "ok", "service": "rani-cab"}
 
-
 @app.get("/api/config")
 def public_config():
     return {
         "brand": "Rani Cab",
         "google_client_id": os.getenv("GOOGLE_CLIENT_ID", "")
     }
-
 
 @app.get("/api/auth/me")
 def auth_me():
@@ -452,12 +415,10 @@ def auth_me():
             user_data["is_online"] = driver_doc.get("is_online", False)
     return {"user": user_data}
 
-
 @app.post("/api/auth/logout")
 def logout():
     session.clear()
     return {"message": "Logged out"}
-
 
 @app.post("/api/auth/register")
 def register_rider():
@@ -495,7 +456,6 @@ def register_rider():
         app.logger.warning("Welcome email could not be sent: %s", exc)
     return jsonify({"user": serialize(user)}), 201
 
-
 @app.post("/api/auth/login")
 def login():
     data = request.get_json(force=True) or {}
@@ -522,7 +482,6 @@ def login():
             user_data["is_online"] = driver_doc.get("is_online", False)
     return {"user": user_data}
 
-
 @app.post("/api/auth/google")
 def google_auth():
     data = request.get_json(force=True) or {}
@@ -541,7 +500,6 @@ def google_auth():
     user = create_or_update_google_user(profile, data.get("phone", ""))
     session["user_id"] = str(user["_id"])
     return {"user": serialize(user)}
-
 
 @app.post("/api/auth/forgot-password/request")
 def forgot_password_request():
@@ -563,7 +521,6 @@ def forgot_password_request():
     password_otps.delete_many({"email": email})
     password_otps.insert_one({"email": email, "otp_hash": generate_password_hash(otp), "expires_at": now() + timedelta(minutes=10), "attempts": 0, "created_at": now(), "sent_at": now()})
     return {"message": "OTP sent to your registered email"}
-
 
 @app.post("/api/auth/forgot-password/resend")
 def forgot_password_resend():
@@ -590,7 +547,6 @@ def forgot_password_resend():
     password_otps.delete_many({"email": email})
     password_otps.insert_one({"email": email, "otp_hash": generate_password_hash(otp), "expires_at": now() + timedelta(minutes=10), "attempts": 0, "created_at": now(), "sent_at": now()})
     return {"message": "A new OTP was sent to your email"}
-
 
 @app.post("/api/auth/forgot-password/verify")
 def forgot_password_verify():
@@ -631,7 +587,6 @@ def admin_me():
         return {"admin": True, "username": os.getenv("ADMIN_USERNAME", "admin")}
     return jsonify({"error": "Admin authentication required"}), 401
 
-
 @app.post("/api/admin/login")
 def admin_login():
     data = request.get_json(force=True) or {}
@@ -640,30 +595,31 @@ def admin_login():
         return {"admin": True, "message": "Admin logged in successfully"}
     return jsonify({"error": "Invalid admin credentials"}), 401
 
-
 @app.post("/api/admin/logout")
 def admin_logout():
     session.pop("admin", None)
     return {"message": "Admin logged out"}
 
-
 @app.post("/api/admin/drivers")
 @admin_required
 def create_driver():
-    data = request.get_json(force=True) or {}
-    name = data.get("name", "").strip()
+    data = request.form or request.get_json(force=True) or {}
+    name = (data.get("name") or "").strip()
     if not name:
         return jsonify({"error": "Driver name is required"}), 400
+
     username = f"driver{secrets.randbelow(900000) + 100000}"
     password = secrets.token_urlsafe(8)
-    email = data.get("email", "").strip().lower() or f"{username}@rani-cab.local"
-    phone = data.get("phone", "").strip()
-    vehicle_model = data.get("vehicle_model", "Sedan").strip()
-    license_plate = data.get("license_plate", f"TN-{secrets.randbelow(90)+10}-AB-{secrets.randbelow(9000)+1000}").strip()
-    upi_id = data.get("upi_id", "").strip()
-    
-    loc = resolve_location(data.get("city", "madurai"), data.get("lng"), data.get("lat"))
-    
+    email = (data.get("email") or "").strip().lower() or f"{username}@rani-cab.local"
+    phone = (data.get("phone") or "").strip()
+    vehicle_model = (data.get("vehicle_model") or "Sedan").strip()
+    license_plate = (data.get("license_plate") or f"TN-{secrets.randbelow(90)+10}-AB-{secrets.randbelow(9000)+1000}").strip()
+    upi_id = (data.get("upi_id") or "").strip()
+    city = data.get("city", "madurai")
+    send_creds = data.get("send_credentials", True)
+
+    loc = resolve_location(city)
+
     user = {
         "name": name,
         "username": username,
@@ -677,7 +633,8 @@ def create_driver():
     try:
         result = users.insert_one(user)
     except DuplicateKeyError:
-        return jsonify({"error": "A driver or user with this email, phone, or username already exists"}), 409
+        return jsonify({"error": "A driver with this email already exists"}), 409
+
     driver = {
         "user_id": result.inserted_id,
         "vehicle_model": vehicle_model,
@@ -687,12 +644,67 @@ def create_driver():
         "current_location": loc,
         "created_at": now()
     }
-    drivers.insert_one(driver)
-    return jsonify({
-        "driver": serialize(driver),
-        "credentials": {"username": username, "email": email, "password": password, "name": name}
-    }), 201
+    drv_result = drivers.insert_one(driver)
 
+    # Handle image uploads
+    image_urls = {}
+    if request.files:
+        for img_type in IMAGE_TYPES:
+            file = request.files.get(img_type)
+            if file and file.filename:
+                ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
+                if ext in ALLOWED_IMAGE_EXTENSIONS:
+                    fname = f"{drv_result.inserted_id}_{img_type}_{secrets.token_hex(6)}.{ext}"
+                    file.save(os.path.join(UPLOAD_DIR, fname))
+                    url = f"/uploads/{fname}"
+                    image_urls[f"{img_type}_image"] = url
+        if image_urls:
+            drivers.update_one({"_id": drv_result.inserted_id}, {"$set": image_urls})
+
+    # Auto-send credentials email
+    email_sent = False
+    if send_creds and email and "@" in email:
+        subject = "Your RaniCab Driver Account Credentials"
+        body = f"""Hi {name},
+
+Welcome to RaniCab! Your driver account has been created.
+
+Here are your login credentials:
+
+  Username : {username}
+  Email    : {email}
+  Password : {password}
+
+Vehicle      : {vehicle_model}
+License Plate: {license_plate}
+
+Please log in to the RaniCab Driver app and change your password.
+
+RaniCab Admin Team"""
+        html_body = f"""
+        <!doctype html><html><body style="margin:0;background:#faf6ee;font-family:Arial,sans-serif;color:#1b1b1f;">
+          <div style="max-width:560px;margin:32px auto;padding:0 20px;">
+            <div style="border-top:6px solid #e8a33d;background:#fff;padding:28px 30px;">
+              <p style="margin:0 0 18px;color:#c9832a;font-size:12px;font-weight:bold;letter-spacing:2px;">RaniCab Admin</p>
+              <h1 style="margin:0 0 12px;font-size:26px;">Driver Account Created</h1>
+              <p style="margin:0 0 20px;color:#54555c;font-size:15px;line-height:1.6;">Hi {escape(name)}, welcome to RaniCab! Use the credentials below to log in to the Driver app.</p>
+              <div style="background:#fbe7c6;padding:18px;border-radius:6px;">
+                <p style="margin:0 0 8px;"><b>Username:</b> {escape(username)}</p>
+                <p style="margin:0 0 8px;"><b>Email:</b> {escape(email)}</p>
+                <p style="margin:0;"><b>Password:</b> <span style="font-size:18px;font-weight:bold;letter-spacing:2px;">{escape(password)}</span></p>
+              </div>
+              <p style="margin:20px 0 0;color:#54555c;font-size:13px;">Vehicle: {escape(vehicle_model)} | Plate: {escape(license_plate)}</p>
+              <p style="margin:12px 0 0;color:#999;font-size:12px;">Please change your password after first login.</p>
+            </div>
+          </div>
+        </body></html>"""
+        email_sent = send_mail(email, subject, body, html_body)
+
+    return jsonify({
+        "driver": serialize(drivers.find_one({"_id": drv_result.inserted_id})),
+        "credentials": {"username": username, "email": email, "password": password, "name": name},
+        "email_sent": email_sent
+    }), 201
 
 @app.get("/api/admin/overview")
 @admin_required
@@ -718,6 +730,11 @@ def admin_overview():
             "phone": user.get("phone", ""),
             "email": user.get("email", ""),
             "rating": user.get("rating", 5.0),
+            "profile_image": driver.get("profile_image", ""),
+            "licence_image": driver.get("licence_image", ""),
+            "rc_book_image": driver.get("rc_book_image", ""),
+            "insurance_image": driver.get("insurance_image", ""),
+            "vehicle_image": driver.get("vehicle_image", ""),
             "lng": loc[0] if len(loc) > 0 else 78.1198,
             "lat": loc[1] if len(loc) > 1 else 9.9252,
         })
@@ -735,7 +752,6 @@ def admin_overview():
         "recent_rides": recent_rides,
         "pricing": serialize(pricing)
     }
-
 
 @app.route("/api/admin/settings", methods=["GET", "POST"])
 @admin_required
@@ -757,12 +773,398 @@ def admin_settings():
     return {"settings": serialize(pricing)}
 
 
+# ============ ADMIN: DRIVER DETAIL WITH IMAGES ============
+
+@app.get("/api/admin/drivers/<driver_id>")
+@admin_required
+def admin_get_driver_detail(driver_id):
+    driver_oid = oid(driver_id)
+    driver = drivers.find_one({"_id": driver_oid})
+    if not driver:
+        return jsonify({"error": "Driver not found"}), 404
+
+    user = users.find_one({"_id": driver["user_id"]}) or {}
+    loc = driver.get("current_location", {}).get("coordinates", [0, 0])
+
+    # Driver's rides
+    driver_rides = list(rides.find({"driver_id": driver["user_id"]}).sort("created_at", -1).limit(30))
+    completed = [r for r in driver_rides if r.get("status") == "completed"]
+    total_earnings = sum(float(r.get("fare", 0)) for r in completed)
+
+    return {
+        "driver": {
+            **serialize(driver),
+            "name": user.get("name", ""),
+            "username": user.get("username", ""),
+            "email": user.get("email", ""),
+            "phone": user.get("phone", ""),
+            "rating": user.get("rating", 5.0),
+            "ratings_count": user.get("ratings_count", 0),
+            "profile_image": driver.get("profile_image", ""),
+            "licence_image": driver.get("licence_image", ""),
+            "rc_book_image": driver.get("rc_book_image", ""),
+            "insurance_image": driver.get("insurance_image", ""),
+            "vehicle_image": driver.get("vehicle_image", ""),
+            "lng": loc[0] if loc else 0,
+            "lat": loc[1] if loc else 0,
+            "is_online": driver.get("is_online", False),
+            "vehicle_model": driver.get("vehicle_model", ""),
+            "license_plate": driver.get("license_plate", ""),
+            "upi_id": driver.get("upi_id", ""),
+        },
+        "stats": {
+            "total_rides": len(completed),
+            "total_earnings": total_earnings,
+            "avg_rating": user.get("rating", 5.0),
+            "recent_rides": [serialize(r) for r in driver_rides[:10]],
+        }
+    }
+
+# ============ ADMIN: UPLOAD DRIVER IMAGE ============
+
+@app.post("/api/admin/drivers/<driver_id>/upload")
+@admin_required
+def admin_upload_driver_image(driver_id):
+    driver_oid = oid(driver_id)
+    driver = drivers.find_one({"_id": driver_oid})
+    if not driver:
+        return jsonify({"error": "Driver not found"}), 404
+
+    image_type = request.form.get("type", "")
+    if image_type not in IMAGE_TYPES:
+        return jsonify({"error": f"Invalid image type. Must be one of: {', '.join(IMAGE_TYPES)}"}), 400
+
+    if "file" not in request.files:
+        return jsonify({"error": "No file uploaded"}), 400
+
+    file = request.files["file"]
+    if not file or not file.filename:
+        return jsonify({"error": "Empty file"}), 400
+
+    ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
+    if ext not in ALLOWED_IMAGE_EXTENSIONS:
+        return jsonify({"error": "Only PNG, JPG, JPEG, WEBP files allowed"}), 400
+
+    filename = f"{driver_id}_{image_type}_{secrets.token_hex(6)}.{ext}"
+    file.save(os.path.join(UPLOAD_DIR, filename))
+    url = f"/uploads/{filename}"
+    field = f"{image_type}_image"
+    drivers.update_one({"_id": driver_oid}, {"$set": {field: url}})
+
+    return {"url": url, "type": image_type, "field": field}
+
+# ============ ADMIN: UPDATE DRIVER ============
+
+@app.put("/api/admin/drivers/<driver_id>")
+@admin_required
+def admin_update_driver(driver_id):
+    driver_oid = oid(driver_id)
+    driver = drivers.find_one({"_id": driver_oid})
+    if not driver:
+        return jsonify({"error": "Driver not found"}), 404
+
+    data = request.get_json(force=True) or {}
+
+    user_update = {}
+    for field in ["name", "phone", "email"]:
+        if field in data and data[field]:
+            user_update[field] = data[field].strip() if isinstance(data[field], str) else data[field]
+    if user_update:
+        user_update["updated_at"] = now()
+        users.update_one({"_id": driver["user_id"]}, {"$set": user_update})
+
+    driver_update = {}
+    for field in ["vehicle_model", "license_plate", "upi_id"]:
+        if field in data and data[field] is not None:
+            driver_update[field] = data[field].strip() if isinstance(data[field], str) else data[field]
+    if "city" in data:
+        driver_update["current_location"] = resolve_location(data["city"])
+    if driver_update:
+        driver_update["updated_at"] = now()
+        drivers.update_one({"_id": driver_oid}, {"$set": driver_update})
+
+    return {"message": "Driver updated successfully"}
+
+# ============ ADMIN: DELETE DRIVER ============
+
+@app.delete("/api/admin/drivers/<driver_id>")
+@admin_required
+def admin_delete_driver(driver_id):
+    driver_oid = oid(driver_id)
+    driver = drivers.find_one({"_id": driver_oid})
+    if not driver:
+        return jsonify({"error": "Driver not found"}), 404
+
+    active = rides.find_one({"driver_id": driver["user_id"], "status": {"$in": ACTIVE_STATUSES}})
+    if active:
+        return jsonify({"error": "Cannot delete driver with active rides"}), 400
+
+    drivers.delete_one({"_id": driver_oid})
+    users.delete_one({"_id": driver["user_id"]})
+    return {"message": "Driver deleted successfully"}
+
+# ============ ADMIN: SEND CUSTOM EMAIL TO DRIVER ============
+
+@app.post("/api/admin/drivers/<driver_id>/send-mail")
+@admin_required
+def admin_send_driver_mail(driver_id):
+    driver_oid = oid(driver_id)
+    driver = drivers.find_one({"_id": driver_oid})
+    if not driver:
+        return jsonify({"error": "Driver not found"}), 404
+
+    user = users.find_one({"_id": driver["user_id"]})
+    if not user or not user.get("email"):
+        return jsonify({"error": "Driver has no email address"}), 404
+
+    data = request.get_json(force=True) or {}
+    subject = (data.get("subject") or "").strip()
+    body = (data.get("body") or "").strip()
+
+    if not subject or not body:
+        return jsonify({"error": "Subject and message body are required"}), 400
+
+    html_body = f"""
+    <!doctype html><html><body style="margin:0;background:#faf6ee;font-family:Arial,sans-serif;color:#1b1b1f;">
+      <div style="max-width:560px;margin:32px auto;padding:0 20px;">
+        <div style="border-top:6px solid #e8a33d;background:#fff;padding:28px 30px;">
+          <p style="margin:0 0 18px;color:#c9832a;font-size:12px;font-weight:bold;letter-spacing:2px;">RaniCab Admin Message</p>
+          <h1 style="margin:0 0 12px;font-size:24px;">{escape(subject)}</h1>
+          <p style="margin:0 0 16px;color:#54555c;font-size:15px;">Hi {escape(user.get('name', 'Driver'))},</p>
+          <div style="background:#f5f3ed;padding:20px;border-left:4px solid #e8a33d;">
+            <p style="margin:0;white-space:pre-line;line-height:1.7;color:#333;">{escape(body)}</p>
+          </div>
+          <p style="margin:20px 0 0;color:#999;font-size:12px;">— RaniCab Admin Team</p>
+        </div>
+      </div>
+    </body></html>"""
+
+    if not send_mail(user["email"], subject, body, html_body):
+        return jsonify({"error": "Failed to send email. Check SMTP settings."}), 503
+
+    return {"message": f"Email sent to {user['email']}"}
+
+# ============ ADMIN: RE-SEND CREDENTIALS EMAIL ============
+
+@app.post("/api/admin/drivers/<driver_id>/send-credentials")
+@admin_required
+def admin_resend_credentials(driver_id):
+    driver_oid = oid(driver_id)
+    driver = drivers.find_one({"_id": driver_oid})
+    if not driver:
+        return jsonify({"error": "Driver not found"}), 404
+
+    user = users.find_one({"_id": driver["user_id"]})
+    if not user:
+        return jsonify({"error": "Driver user account not found"}), 404
+
+    # Generate new password
+    new_password = secrets.token_urlsafe(8)
+    users.update_one({"_id": user["_id"]}, {
+        "$set": {"password_hash": generate_password_hash(new_password), "updated_at": now()}
+    })
+
+    subject = "Your RaniCab Driver Credentials (Reset)"
+    body = f"""Hi {user.get('name', 'Driver')},
+
+Your RaniCab driver account credentials have been reset by the admin.
+
+  Username : {user.get('username')}
+  Email    : {user.get('email')}
+  Password : {new_password}
+
+Vehicle      : {driver.get('vehicle_model', 'N/A')}
+License Plate: {driver.get('license_plate', 'N/A')}
+
+Please log in and change your password.
+
+RaniCab Admin Team"""
+
+    html_body = f"""
+    <!doctype html><html><body style="margin:0;background:#faf6ee;font-family:Arial,sans-serif;color:#1b1b1f;">
+      <div style="max-width:560px;margin:32px auto;padding:0 20px;">
+        <div style="border-top:6px solid #e8a33d;background:#fff;padding:28px 30px;">
+          <p style="margin:0 0 18px;color:#c9832a;font-size:12px;font-weight:bold;letter-spacing:2px;">RaniCab Admin</p>
+          <h1 style="margin:0 0 12px;font-size:26px;">Credentials Reset</h1>
+          <p style="margin:0 0 20px;color:#54555c;font-size:15px;">Hi {escape(user.get('name', 'Driver'))}, your password has been reset.</p>
+          <div style="background:#fbe7c6;padding:18px;">
+            <p style="margin:0 0 8px;"><b>Username:</b> {escape(user.get('username', ''))}</p>
+            <p style="margin:0 0 8px;"><b>Email:</b> {escape(user.get('email', ''))}</p>
+            <p style="margin:0;"><b>New Password:</b> <span style="font-size:18px;font-weight:bold;">{escape(new_password)}</span></p>
+          </div>
+          <p style="margin:16px 0 0;color:#999;font-size:12px;">Please change your password after logging in.</p>
+        </div>
+      </div>
+    </body></html>"""
+
+    sent = send_mail(user.get("email", ""), subject, body, html_body)
+    if not sent:
+        return jsonify({"error": "Failed to send email"}), 503
+
+    return {"message": "New credentials sent to driver's email", "temp_password": new_password}
+
+# ============ ADMIN: REAL ANALYTICS ============
+
+@app.get("/api/admin/analytics")
+@admin_required
+def admin_analytics():
+    today = now().replace(hour=0, minute=0, second=0, microsecond=0)
+
+    total_drivers = drivers.count_documents({})
+    online_drivers_list = list(drivers.find({"is_online": True}))
+    online_count = len(online_drivers_list)
+    total_riders = users.count_documents({"role": "rider"})
+    total_rides = rides.count_documents({})
+    today_rides = rides.count_documents({"created_at": {"$gte": today}})
+
+    today_rev_agg = list(rides.aggregate([
+        {"$match": {"status": "completed", "completed_at": {"$gte": today}}},
+        {"$group": {"_id": None, "total": {"$sum": "$fare"}}}
+    ]))
+    today_revenue = today_rev_agg[0]["total"] if today_rev_agg else 0
+
+    month = today.replace(day=1)
+    month_rev_agg = list(rides.aggregate([
+        {"$match": {"status": "completed", "completed_at": {"$gte": month}}},
+        {"$group": {"_id": None, "total": {"$sum": "$fare"}}}
+    ]))
+    month_revenue = month_rev_agg[0]["total"] if month_rev_agg else 0
+
+    all_rev_agg = list(rides.aggregate([
+        {"$match": {"status": "completed"}},
+        {"$group": {"_id": None, "total": {"$sum": "$fare"}}}
+    ]))
+    all_time_revenue = all_rev_agg[0]["total"] if all_rev_agg else 0
+
+    weekly_chart = []
+    for i in range(6, -1, -1):
+        day_start = today - timedelta(days=i)
+        day_end = day_start + timedelta(days=1)
+        day_rides = rides.count_documents({"created_at": {"$gte": day_start, "$lt": day_end}})
+        day_rev = list(rides.aggregate([
+            {"$match": {"status": "completed", "completed_at": {"$gte": day_start, "$lt": day_end}}},
+            {"$group": {"_id": None, "total": {"$sum": "$fare"}}}
+        ]))
+        weekly_chart.append({
+            "label": day_start.strftime("%a"),
+            "date": day_start.strftime("%Y-%m-%d"),
+            "rides": day_rides,
+            "revenue": day_rev[0]["total"] if day_rev else 0
+        })
+
+    monthly_chart = []
+    for i in range(29, -1, -1):
+        day_start = today - timedelta(days=i)
+        day_end = day_start + timedelta(days=1)
+        day_rev = list(rides.aggregate([
+            {"$match": {"status": "completed", "completed_at": {"$gte": day_start, "$lt": day_end}}},
+            {"$group": {"_id": None, "total": {"$sum": "$fare"}}}
+        ]))
+        monthly_chart.append({
+            "label": day_start.strftime("%d %b"),
+            "revenue": day_rev[0]["total"] if day_rev else 0
+        })
+
+    status_breakdown = {}
+    for status in ["requested", "accepted", "ongoing", "pending_completion", "completed", "cancelled"]:
+        status_breakdown[status] = rides.count_documents({"status": status})
+
+    top_drivers_agg = list(rides.aggregate([
+        {"$match": {"status": "completed", "driver_id": {"$ne": None}}},
+        {"$group": {"_id": "$driver_id", "earnings": {"$sum": "$fare"}, "rides": {"$sum": 1}}},
+        {"$sort": {"earnings": -1}},
+        {"$limit": 5}
+    ]))
+    top_drivers = []
+    for td in top_drivers_agg:
+        u = users.find_one({"_id": td["_id"]}) or {}
+        top_drivers.append({
+            "name": u.get("name", "Unknown"),
+            "username": u.get("username", ""),
+            "earnings": round(td["earnings"], 2),
+            "rides": td["rides"]
+        })
+
+    online_drivers_detail = []
+    for d in online_drivers_list:
+        u = users.find_one({"_id": d["user_id"]}) or {}
+        loc = d.get("current_location", {}).get("coordinates", [0, 0])
+        online_drivers_detail.append({
+            "id": str(d["_id"]),
+            "user_id": str(d["user_id"]),
+            "name": u.get("name", "Driver"),
+            "username": u.get("username", ""),
+            "phone": u.get("phone", ""),
+            "vehicle_model": d.get("vehicle_model", "N/A"),
+            "license_plate": d.get("license_plate", "N/A"),
+            "rating": u.get("rating", 5.0),
+            "profile_image": d.get("profile_image", ""),
+            "lng": loc[0] if loc else 0,
+            "lat": loc[1] if loc else 0,
+            "last_seen": d.get("location_updated_at"),
+        })
+
+    hourly_chart = []
+    for h in range(24):
+        h_start = today + timedelta(hours=h)
+        h_end = h_start + timedelta(hours=1)
+        if h_start > now():
+            hourly_chart.append({"hour": f"{h:02d}:00", "rides": 0})
+        else:
+            cnt = rides.count_documents({"created_at": {"$gte": h_start, "$lt": h_end}})
+            hourly_chart.append({"hour": f"{h:02d}:00", "rides": cnt})
+
+    return {
+        "summary": {
+            "total_drivers": total_drivers,
+            "online_drivers": online_count,
+            "offline_drivers": total_drivers - online_count,
+            "total_riders": total_riders,
+            "total_rides": total_rides,
+            "today_rides": today_rides,
+            "today_revenue": round(today_revenue, 2),
+            "month_revenue": round(month_revenue, 2),
+            "all_time_revenue": round(all_time_revenue, 2),
+        },
+        "weekly_chart": weekly_chart,
+        "monthly_chart": monthly_chart,
+        "hourly_chart": hourly_chart,
+        "status_breakdown": status_breakdown,
+        "top_drivers": top_drivers,
+        "online_drivers_list": online_drivers_detail,
+    }
+
+# ============ ADMIN: ALL RIDES ============
+
+@app.get("/api/admin/rides")
+@admin_required
+def admin_all_rides():
+    status_filter = request.args.get("status", "")
+    query = {"status": status_filter} if status_filter else {}
+    all_rides = list(rides.find(query).sort("created_at", -1).limit(200))
+
+    results = []
+    for r in all_rides:
+        doc = serialize(r)
+        rider = users.find_one({"_id": r.get("rider_id")}) or {}
+        doc["rider_name"] = rider.get("name", "Unknown")
+        doc["rider_phone"] = rider.get("phone", "")
+        doc["rider_email"] = rider.get("email", "")
+        if r.get("driver_id"):
+            drv_user = users.find_one({"_id": r["driver_id"]}) or {}
+            doc["driver_name"] = drv_user.get("name", "Unknown")
+            doc["driver_phone"] = drv_user.get("phone", "")
+        else:
+            doc["driver_name"] = "—"
+            doc["driver_phone"] = ""
+        results.append(doc)
+
+    return {"rides": results}
+
+
 # ============ RIDE & DISPATCH ENDPOINTS ============
 
 def issue_completion_otp(ride, ride_oid):
-    """Generate a fresh OTP, store its hash/expiry/sent-time on the ride, email
-    it to the rider, and return the ride's serialized payload. Shared by the
-    initial completion trigger and the resend-OTP endpoint below."""
     otp = f"{secrets.randbelow(1000000):06d}"
     otp_hash = generate_password_hash(otp)
     expires_at = now() + timedelta(minutes=10)
@@ -788,10 +1190,6 @@ def issue_completion_otp(ride, ride_oid):
 @app.post("/api/rides/request")
 @require_role("rider")
 def request_ride():
-    # --- Single Active Ride Lock ---
-    # A rider may only have one ride in flight at a time. Check the database for
-    # any ride still in an ACTIVE, IN_PROGRESS, or PENDING state before allowing
-    # a new request to be created.
     existing_active = rides.find_one({
         "rider_id": request.user["_id"],
         "status": {"$in": ACTIVE_STATUSES + ["pending_completion"]}
@@ -843,13 +1241,11 @@ def request_ride():
     
     return {"ride": payload, "nearby_drivers": len(nearby_drivers)}
 
-
 @app.get("/api/rides/available")
 @require_role("driver")
 def available_rides():
     open_rides = list(rides.find({"status": "requested"}).sort("created_at", -1).limit(10))
     return {"rides": [serialize(r) for r in open_rides]}
-
 
 @app.post("/api/rides/<ride_id>/accept")
 @require_role("driver")
@@ -895,7 +1291,6 @@ def accept_ride(ride_id):
 
     return {"ride": payload, "driver": driver_info}
 
-
 @app.post("/api/rides/<ride_id>/verify")
 @require_role("rider")
 def verify_driver(ride_id):
@@ -920,7 +1315,6 @@ def verify_driver(ride_id):
         socketio.emit("ride_updated", payload, room=f"driver:{ride['driver_id']}")
     return {"ride": payload, "message": "Driver verified"}
 
-
 @app.post("/api/rides/<ride_id>/start")
 @require_role("driver")
 def start_ride(ride_id):
@@ -943,7 +1337,6 @@ def start_ride(ride_id):
     socketio.emit("ride_updated", payload, room=f"rider:{ride['rider_id']}")
     return {"ride": payload}
 
-
 @app.post("/api/rides/<ride_id>/complete")
 @require_role("driver")
 def complete_ride(ride_id):
@@ -955,10 +1348,6 @@ def complete_ride(ride_id):
     if not ride:
         return jsonify({"error": "Ride not found or not assigned to you"}), 404
 
-    # --- Secured Ride Completion: build a dynamic UPI payment QR string ---
-    # The driver's UPI ID plus the exact fare amount is encoded into a standard
-    # upi://pay deep link. The frontend renders this as a QR code so the rider
-    # can scan and pay with any UPI app before the OTP is exchanged.
     driver_profile = drivers.find_one({"user_id": request.user["_id"]}) or {}
     driver_upi_id = (driver_profile.get("upi_id") or "").strip()
     driver_display_name = request.user.get("name", "RaniCab Driver")
@@ -990,14 +1379,9 @@ def complete_ride(ride_id):
 
 RESEND_OTP_COOLDOWN_SECONDS = 30
 
-
 @app.post("/api/rides/<ride_id>/resend-otp")
 @require_role("driver", "rider")
 def resend_completion_otp(ride_id):
-    # Either party on a ride awaiting completion can request a fresh OTP —
-    # the rider if the original email never arrived, the driver if the rider
-    # says theirs expired or got lost. A short cooldown keeps this from being
-    # spammed and flooding the rider's inbox.
     ride_oid = oid(ride_id)
     if not ride_oid:
         return jsonify({"error": "Invalid ride ID"}), 400
@@ -1068,9 +1452,6 @@ def complete_ride_verify(ride_id):
 @app.post("/api/rides/<ride_id>/complete-verify-driver")
 @require_role("driver")
 def complete_ride_verify_driver(ride_id):
-    # Mirrors complete_ride_verify, but lets the DRIVER key in the OTP the rider
-    # reads out to them after scanning the UPI QR and paying — this matches the
-    # secured completion flow: driver collects payment, then finalizes the trip.
     data = request.get_json(force=True) or {}
     otp = data.get("otp", "").strip()
     ride_oid = oid(ride_id)
@@ -1101,7 +1482,6 @@ def complete_ride_verify_driver(ride_id):
     socketio.emit("ride_updated", payload, room=f"driver:{ride['driver_id']}")
     socketio.emit("ride_updated", payload, room="drivers")
     return {"ride": payload, "message": "Trip completed successfully!"}
-
 
 @app.post("/api/rides/<ride_id>/rate")
 @require_role("rider")
@@ -1143,11 +1523,9 @@ def rate_driver(ride_id):
     socketio.emit("ride_updated", payload, room=f"rider:{ride['rider_id']}")
     return {"ride": payload, "message": "Thank you for your rating!"}
 
-
 @app.post("/api/rides/<ride_id>/rate-rider")
 @require_role("driver")
 def rate_rider(ride_id):
-    # Mirror of rate_driver, for the other direction of the post-ride star rating.
     data = request.get_json(force=True) or {}
     rating = data.get("rating")
     if rating is None or not (1 <= rating <= 5):
@@ -1185,7 +1563,6 @@ def rate_rider(ride_id):
     socketio.emit("ride_updated", payload, room=f"driver:{request.user['_id']}")
     return {"ride": payload, "message": "Thanks for rating your rider!"}
 
-
 @app.post("/api/rides/<ride_id>/unassign")
 @require_role("driver")
 def unassign_ride(ride_id):
@@ -1213,7 +1590,6 @@ def unassign_ride(ride_id):
 
     return {"ride": payload}
 
-
 @app.post("/api/rides/<ride_id>/cancel")
 @require_role("rider", "driver")
 def cancel_ride(ride_id):
@@ -1236,7 +1612,6 @@ def cancel_ride(ride_id):
         socketio.emit("ride_updated", payload, room=f"driver:{ride['driver_id']}")
     socketio.emit("ride_updated", payload, room="drivers")
     return {"ride": payload}
-
 
 @app.get("/api/rides/active")
 @require_role("rider", "driver")
@@ -1277,7 +1652,6 @@ def active_ride():
 
     return {"ride": payload}
 
-
 @app.get("/api/rides/history")
 @require_role("rider", "driver")
 def ride_history():
@@ -1312,8 +1686,13 @@ def toggle_driver_online():
     current_status = driver.get("is_online", False)
     new_status = bool(data.get("is_online", not current_status))
     drivers.update_one({"user_id": request.user["_id"]}, {"$set": {"is_online": new_status, "updated_at": now()}})
+    
+    socketio.emit("driver_status_update", {
+        "driver_id": str(request.user["_id"]),
+        "is_online": new_status
+    }, room="admin")
+    
     return {"is_online": new_status}
-
 
 @app.post("/api/driver/upi")
 @require_role("driver")
@@ -1327,7 +1706,6 @@ def update_driver_upi():
         return jsonify({"error": "Driver profile not found"}), 404
     drivers.update_one({"user_id": request.user["_id"]}, {"$set": {"upi_id": upi_id, "updated_at": now()}})
     return {"upi_id": upi_id}
-
 
 @app.get("/api/driver/performance")
 @require_role("driver")
@@ -1365,7 +1743,9 @@ def socket_connect():
         if role == "driver":
             join_room("drivers")
         emit("connected", {"role": role, "user_id": user_id_str})
-
+    elif session.get("admin"):
+        join_room("admin")
+        emit("connected", {"role": "admin"})
 
 @socketio.on("driver_location")
 def driver_location_socket(data):
@@ -1392,7 +1772,6 @@ def driver_location_socket(data):
             {"ride_id": str(active["_id"]), "location": loc, "lat": lat, "lng": lng},
             room=f"rider:{active['rider_id']}"
         )
-
 
 if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=int(os.getenv("PORT", 5000)))
