@@ -1685,7 +1685,23 @@ def toggle_driver_online():
     
     current_status = driver.get("is_online", False)
     new_status = bool(data.get("is_online", not current_status))
-    drivers.update_one({"user_id": request.user["_id"]}, {"$set": {"is_online": new_status, "updated_at": now()}})
+    
+    # CHECK: Prevent going offline if driver has an active ride
+    if not new_status:  # Trying to go offline
+        active_ride = rides.find_one({
+            "driver_id": request.user["_id"],
+            "status": {"$in": ["accepted", "ongoing", "pending_completion"]}
+        })
+        if active_ride:
+            return jsonify({
+                "error": "You cannot go offline while you have an active ride. Complete or unassign the ride first.",
+                "active_ride": active_ride["status"]
+            }), 403
+    
+    drivers.update_one(
+        {"user_id": request.user["_id"]},
+        {"$set": {"is_online": new_status, "updated_at": now()}}
+    )
     
     socketio.emit("driver_status_update", {
         "driver_id": str(request.user["_id"]),
@@ -1693,19 +1709,6 @@ def toggle_driver_online():
     }, room="admin")
     
     return {"is_online": new_status}
-
-@app.post("/api/driver/upi")
-@require_role("driver")
-def update_driver_upi():
-    data = request.get_json(silent=True) or {}
-    upi_id = data.get("upi_id", "").strip()
-    if upi_id and "@" not in upi_id:
-        return jsonify({"error": "Enter a valid UPI ID, e.g. name@bank"}), 400
-    driver = drivers.find_one({"user_id": request.user["_id"]})
-    if not driver:
-        return jsonify({"error": "Driver profile not found"}), 404
-    drivers.update_one({"user_id": request.user["_id"]}, {"$set": {"upi_id": upi_id, "updated_at": now()}})
-    return {"upi_id": upi_id}
 
 @app.get("/api/driver/performance")
 @require_role("driver")

@@ -168,6 +168,11 @@
             padding: 8px 16px;
             font-size: 13px;
         }
+        .btn:disabled {
+            opacity: 0.6;
+            pointer-events: none;
+            cursor: not-allowed;
+        }
         .badge {
             display: inline-flex;
             padding: 7px 12px;
@@ -237,11 +242,6 @@
         .ride-item .accept-btn {
             margin-left: 8px;
         }
-        .btn:disabled {
-            opacity: 0.6;
-            pointer-events: none;
-        }
-        /* ensure Leaflet zoom controls are always visible */
         .leaflet-control-zoom {
             border: 2px solid rgba(0, 0, 0, .08) !important;
             border-radius: 8px !important;
@@ -264,28 +264,19 @@
         .leaflet-control-zoom a:hover {
             background: var(--paper) !important;
         }
-        /* hide the routing panel completely */
         .leaflet-routing-container {
             display: none !important;
         }
-
-        /* Trip Sheet: fills the space under the map with live stats */
         .trip-sheet { margin-top: 14px; padding: 14px 18px; background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-md); display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
         .trip-sheet .stat { text-align: center; }
         .trip-sheet .stat-label { font: 600 10px 'IBM Plex Mono', monospace; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); }
         .trip-sheet .stat-value { font: 700 19px 'Oswald', sans-serif; margin-top: 4px; }
-
-        /* Hourly rental live clock */
         .hourly-timer { margin-top: 14px; padding: 12px 18px; border-radius: var(--radius-md); background: linear-gradient(135deg, var(--marigold), var(--marigold-dark)); color: #fff; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
         .hourly-timer.overtime { background: linear-gradient(135deg, var(--red), #8e2a1e); }
         .hourly-timer .clock { font: 700 24px 'IBM Plex Mono', monospace; letter-spacing: .03em; }
-
-        /* Star rating */
         .star-rating { font-size: 30px; cursor: pointer; display: flex; gap: 6px; }
         .star-rating span { transition: color 0.2s; }
         .star-rating span:hover { color: var(--marigold); }
-
-        /* Custom modal popups — replaces native confirm()/alert() */
         .modal-backdrop { position: fixed; inset: 0; background: rgba(27,27,31,.65); backdrop-filter: blur(3px); display: none; align-items: center; justify-content: center; z-index: 3000; padding: 20px; }
         .modal-backdrop.show { display: flex; }
         .modal-box { background: var(--paper-raised); border-radius: var(--radius-lg); box-shadow: 0 20px 50px var(--shadow); max-width: 440px; width: 100%; padding: 26px; text-align: center; animation: modal-in .18s ease-out; max-height: 90vh; overflow-y: auto; }
@@ -293,8 +284,6 @@
         .modal-box p { color: var(--ink-soft); margin: 8px 0 20px; }
         .modal-actions { display: flex; gap: 10px; }
         .modal-actions .btn { flex: 1; }
-
-        /* Payment / QR panel */
         .payment-panel { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 16px; }
         .qr-box { background: #fff; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px; display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 12px 0; }
         .qr-box canvas { border-radius: 8px; }
@@ -319,7 +308,6 @@
             <div><span class="eyebrow">Driver Dashboard</span><h1>Work console</h1></div>
             <nav class="dashboard-links"><a class="nav-link" href="/">Home</a><a class="nav-link" href="/frontend/driver_dashboard.html">Driver Dashboard</a></nav>
             <div class="nav-actions">
-                <button class="btn btn-sm" id="upiSettingsBtn" type="button" style="background:var(--ink); color:#fff; box-shadow:0 4px 0 #000;">UPI ID</button>
                 <button class="btn" id="onlineToggle">Go Online</button><button class="btn" id="logoutButton" type="button">Log out</button>
             </div>
         </section>
@@ -432,22 +420,6 @@
         </div>
     </div>
 
-    <!-- UPI payout ID settings -->
-    <div id="upiModal" class="modal-backdrop">
-        <div class="modal-box">
-            <h3>Your UPI ID</h3>
-            <p>Riders will scan a QR built from this ID to pay you directly at trip completion.</p>
-            <input type="text" id="upiIdInput" placeholder="yourname@bank" style="width:100%; padding:10px; border:1px solid var(--border); border-radius:8px; font-size:16px; text-align:center; margin-bottom:16px;">
-            <div class="modal-actions">
-                <button class="btn" id="upiCancelBtn" style="background:var(--ink-soft); color:#fff; box-shadow:0 6px 0 #333;" type="button">Cancel</button>
-                <button class="btn" id="upiSaveBtn" type="button">Save</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- pinned to 1.4.4: newer qrcode releases (1.5.2+) dropped the prebuilt
-         browser bundle from the npm package, so unpkg 404s on it and the QR
-         silently never renders -->
     <script src="https://unpkg.com/qrcode@1.4.4/build/qrcode.min.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
     </script>
@@ -509,7 +481,6 @@
                 minZoom: 3
             }).addTo(map);
 
-            // ensure zoom controls are on top
             map.zoomControl.setPosition('topright');
 
             var driverMarker = L.marker([driverLat, driverLng], {
@@ -529,7 +500,6 @@
 
             // --- ROUTING: no panel, no auto-zoom, clean line only ---
             function updateRouteForRide(ride) {
-                // remove old route
                 if (routeControl) {
                     map.removeControl(routeControl);
                     routeControl = null;
@@ -561,14 +531,13 @@
                 }
 
                 if (waypoints.length === 2) {
-                    // create routing control with panel hidden and no auto-zoom
                     routeControl = L.Routing.control({
                         waypoints: waypoints,
                         routeWhileDragging: false,
                         showAlternatives: false,
                         addWaypoints: false,
                         draggableWaypoints: false,
-                        fitSelectedRoutes: false, // prevent map jump
+                        fitSelectedRoutes: false,
                         lineOptions: {
                             styles: [{ color: '#1E7A4C', weight: 6, opacity: 0.9 }],
                             extendToWaypoints: false,
@@ -577,12 +546,11 @@
                         router: L.Routing.osrmv1({
                             serviceUrl: 'https://router.project-osrm.org/route/v1'
                         }),
-                        show: false, // hide the directions panel
+                        show: false,
                         collapsible: false,
                         collapsed: true
                     }).addTo(map);
 
-                    // keep the route line in a separate layer for better control
                     routeControl.on('routesfound', function(e) {
                         var routes = e.routes;
                         if (routes && routes.length > 0) {
@@ -598,8 +566,6 @@
                                     opacity: 0.9,
                                     smoothFactor: 1.5
                                 }).addTo(routeLayerGroup);
-                                // fit map to route with padding, automatic zoom capped so it
-                                // never snaps in tighter than street level
                                 map.flyToBounds(polyline.getBounds(), { padding: [60, 60], maxZoom: 16, duration: 0.8 });
                             }
                             lastRouteSummary = routes[0].summary;
@@ -633,7 +599,6 @@
                     dropoffMarker.setOpacity(0);
                 }
                 if (ride && ride.pickup_location && ride.dropoff_location) {
-                    // fit all markers but only if route is not being drawn (route handles its own fit)
                     if (!routeControl) {
                         var group = L.featureGroup([driverMarker, pickupMarker, dropoffMarker]);
                         var bounds = group.getBounds();
@@ -650,8 +615,6 @@
             function updateDriverMarker(lat, lng) {
                 driverMarker.setLatLng([lat, lng]);
                 if (!hasGeoFix) {
-                    // First real GPS fix — automatically zoom in from the default
-                    // city-level view to a close, street-level position.
                     hasGeoFix = true;
                     map.flyTo([lat, lng], 16, { duration: 1 });
                 } else if (!currentRide || currentRide.status === 'requested') {
@@ -818,14 +781,6 @@
             var submitRiderRatingBtn = document.getElementById('submitRiderRatingBtn');
             var selectedRiderRating = 0;
 
-            // UPI settings
-            var upiSettingsBtn = document.getElementById('upiSettingsBtn');
-            var upiModal = document.getElementById('upiModal');
-            var upiIdInput = document.getElementById('upiIdInput');
-            var upiCancelBtn = document.getElementById('upiCancelBtn');
-            var upiSaveBtn = document.getElementById('upiSaveBtn');
-            var myUpiId = "";
-
             var paymentPanelRideId = null;
             function renderPaymentPanel(ride) {
                 if (!ride || ride.status !== 'pending_completion') {
@@ -837,9 +792,6 @@
                     return;
                 }
                 paymentPanel.style.display = 'block';
-                // Only clear the OTP field on a fresh entry into this state —
-                // repeat re-renders happen whenever a resend triggers a socket
-                // update, and shouldn't wipe out what the driver is mid-typing.
                 if (paymentPanelRideId !== ride.id) {
                     paymentPanelRideId = ride.id;
                     driverOtpInput.value = '';
@@ -856,8 +808,6 @@
                             }
                         });
                     } else {
-                        // QR library didn't load (offline / CDN blocked) — don't fail
-                        // silently, give the driver something they can still use.
                         console.warn('QRCode library not available — showing UPI link fallback.');
                         showUpiFallbackLink(ride.payment_upi_uri);
                     }
@@ -965,27 +915,6 @@
                     });
             });
 
-            // --- UPI settings modal ---
-            function openUpiModal() {
-                upiIdInput.value = myUpiId;
-                upiModal.classList.add('show');
-            }
-            upiSettingsBtn.addEventListener('click', openUpiModal);
-            upiCancelBtn.addEventListener('click', function () { upiModal.classList.remove('show'); });
-            upiModal.addEventListener('click', function (e) { if (e.target === upiModal) upiModal.classList.remove('show'); });
-            upiSaveBtn.addEventListener('click', function () {
-                var value = upiIdInput.value.trim();
-                upiSaveBtn.disabled = true;
-                api('/api/driver/upi', { method: 'POST', body: JSON.stringify({ upi_id: value }) })
-                    .then(function (res) {
-                        myUpiId = res.upi_id || "";
-                        showMessage("UPI ID saved.", "success");
-                        upiModal.classList.remove('show');
-                    })
-                    .catch(function (err) { showMessage("Could not save UPI ID: " + err.message, "error"); })
-                    .finally(function () { upiSaveBtn.disabled = false; });
-            });
-
             // --- Online status ---
             function updateOnlineUI(status) {
                 isOnline = !!status;
@@ -994,6 +923,10 @@
                     onlineToggle.style.background = "var(--ink)";
                     onlineToggle.style.color = "#fff";
                     onlineToggle.style.boxShadow = "0 6px 0 #000";
+                    onlineToggle.disabled = false;
+                    onlineToggle.style.opacity = "1";
+                    onlineToggle.style.cursor = "pointer";
+                    onlineToggle.title = "";
                     if (!currentRide) {
                         badgeEl.textContent = "Online · Listening for requests";
                         badgeEl.style.background = "#d4edda";
@@ -1006,6 +939,10 @@
                     onlineToggle.style.background = "var(--marigold)";
                     onlineToggle.style.color = "var(--ink)";
                     onlineToggle.style.boxShadow = "0 6px 0 var(--marigold-dark)";
+                    onlineToggle.disabled = false;
+                    onlineToggle.style.opacity = "1";
+                    onlineToggle.style.cursor = "pointer";
+                    onlineToggle.title = "";
                     if (!currentRide) {
                         badgeEl.textContent = "Offline · Tap Go Online";
                         badgeEl.style.background = "#FBE7C6";
@@ -1019,9 +956,33 @@
 
             onlineToggle.addEventListener('click', function() {
                 var targetStatus = !isOnline;
-                api('/api/driver/toggle-online', { method: 'POST', body: JSON.stringify({ is_online: targetStatus }) })
-                    .then(function(res) { updateOnlineUI(res.is_online); if (res.is_online) fetchAvailableRides(); })
-                    .catch(function(err) { showMessage("Status update failed: " + err.message, "error"); });
+                
+                // If trying to go offline, check if we have an active ride first
+                if (!targetStatus && currentRide) {
+                    var activeStatuses = ['accepted', 'ongoing', 'pending_completion'];
+                    if (activeStatuses.includes(currentRide.status)) {
+                        showMessage("You cannot go offline while you have an active ride. Complete or unassign the ride first.", "error");
+                        return;
+                    }
+                }
+                
+                api('/api/driver/toggle-online', { 
+                    method: 'POST', 
+                    body: JSON.stringify({ is_online: targetStatus }) 
+                })
+                .then(function(res) { 
+                    updateOnlineUI(res.is_online); 
+                    if (res.is_online) fetchAvailableRides(); 
+                })
+                .catch(function(err) { 
+                    showMessage("Status update failed: " + err.message, "error"); 
+                    // Refresh the UI state if there was an error
+                    api('/api/auth/me').then(function(res) {
+                        if (res && res.user && res.user.driver_profile) {
+                            updateOnlineUI(res.user.driver_profile.is_online);
+                        }
+                    });
+                });
             });
 
             // --- Ride actions ---
@@ -1095,6 +1056,19 @@
                 startRideBtn.style.display = "none";
                 completeRideBtn.style.display = "none";
                 cancelRideBtn.style.display = "none";
+
+                // Update Online button state based on active ride
+                if (ride && ['accepted', 'ongoing', 'pending_completion'].includes(ride.status)) {
+                    onlineToggle.disabled = true;
+                    onlineToggle.title = "Cannot go offline while on an active ride";
+                    onlineToggle.style.opacity = "0.6";
+                    onlineToggle.style.cursor = "not-allowed";
+                } else {
+                    onlineToggle.disabled = false;
+                    onlineToggle.title = "";
+                    onlineToggle.style.opacity = "1";
+                    onlineToggle.style.cursor = "pointer";
+                }
 
                 updateRideMarkers(ride);
                 updateRouteForRide(ride);
@@ -1265,7 +1239,7 @@
                         var chart = document.getElementById('chartContainer');
                         if (chart) {
                             var bars = chart.querySelectorAll('.bar');
-                            week.forEach(function(w, i) { if (bars[i]) { var pct = Math.max(15, Math.round(((
+                            week.forEach(function(w, i) { if (bars[i]) { var pct = Math.max(15, Math.round((( 
                                     w.rides || 0) / maxRides) * 90));
                                     bars[i].style.height = pct + "%"; } });
                         }
@@ -1334,7 +1308,6 @@
                     if (res && res.user) {
                         if (res.user.driver_profile) {
                             updateOnlineUI(res.user.driver_profile.is_online);
-                            myUpiId = res.user.driver_profile.upi_id || "";
                             if (res.user.driver_profile.current_location && res.user.driver_profile.current_location
                                 .coordinates) {
                                 driverLng = res.user.driver_profile.current_location.coordinates[0];
