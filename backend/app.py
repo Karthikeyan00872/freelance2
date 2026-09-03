@@ -3,6 +3,7 @@ import secrets
 import smtplib
 from html import escape
 from datetime import datetime, timezone, timedelta
+from zoneinfo import ZoneInfo
 from functools import wraps
 from urllib.parse import quote
 
@@ -254,6 +255,20 @@ def serve_upload(filename):
 
 def now():
     return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+INDIA_TZ = ZoneInfo("Asia/Kolkata")
+
+def india_today_str():
+    return datetime.now(INDIA_TZ).date().isoformat()
+
+def ride_is_today(ride):
+    scheduled = str(ride.get("scheduled_date") or "")
+    return not scheduled or scheduled == india_today_str()
+
+def ride_is_future_booking(ride):
+    scheduled = str(ride.get("scheduled_date") or "")
+    return bool(scheduled) and scheduled > india_today_str()
 
 def oid(value):
     from bson import ObjectId
@@ -1205,11 +1220,18 @@ def request_ride():
     pickup_addr = data.get("pickup_address", "Madurai")
     dropoff_addr = data.get("dropoff_address", "Chennai")
     
-    pickup = resolve_location(pickup_addr, data.get("pickup_lng"), data.get("pickup_lat"), default_city="madurai")
-    dropoff = resolve_location(dropoff_addr, data.get("dropoff_lng"), data.get("dropoff_lat"), default_city="chennai")
-    
     fare = float(data.get("estimated_fare") or data.get("fare") or 0)
     trip_type = data.get("trip_type", "oneway")
+
+    # Hourly rides are time-based city trips. They have a pickup city/town only;
+    # there is deliberately no destination for routing or display.
+    if trip_type == "hourly":
+        dropoff_addr = ""
+        pickup = resolve_location(pickup_addr, data.get("pickup_lng"), data.get("pickup_lat"), default_city="madurai")
+        dropoff = pickup
+    else:
+        pickup = resolve_location(pickup_addr, data.get("pickup_lng"), data.get("pickup_lat"), default_city="madurai")
+        dropoff = resolve_location(dropoff_addr, data.get("dropoff_lng"), data.get("dropoff_lat"), default_city="chennai")
     
     ride = {
         "rider_id": request.user["_id"],
@@ -1266,12 +1288,22 @@ def accept_ride(ride_id):
         "license_plate": driver.get("license_plate", "TN-01-AB-1234"),
     }
 
+    requested_ride = rides.find_one({"_id": ride_oid, "status": "requested"})
+    if not requested_ride:
+        return jsonify({"error": "Ride already accepted or no longer available"}), 409
+
+    # A ride accepted for a later date is a BOOKED ride. It remains assigned to
+    # the driver but must not block the driver's normal work for today's rides.
+    booked_for_future = ride_is_future_booking(requested_ride)
+    initial_status = "accepted"
+
     result = rides.update_one(
         {"_id": ride_oid, "status": "requested"},
         {
             "$set": {
                 "driver_id": request.user["_id"],
-                "status": "accepted",
+                "status": initial_status,
+                "booking_state": "booked" if booked_for_future else "accepted",
                 "accepted_at": now(),
                 "driver_info": driver_info,
                 "rider_verified": False,
@@ -1298,9 +1330,15 @@ def verify_driver(ride_id):
     if not ride_oid:
         return jsonify({"error": "Invalid ride ID"}), 400
 
+    ride_for_verify = rides.find_one({"_id": ride_oid, "rider_id": request.user["_id"], "status": "accepted"})
+    if not ride_for_verify:
+        return jsonify({"error": "Ride not found or not assigned to you"}), 404
+    if not ride_is_today(ride_for_verify):
+        return jsonify({"error": "This ride is booked for " + str(ride_for_verify.get("scheduled_date") or "a future date") + ". Driver verification is available on the ride date."}), 400
+
     result = rides.update_one(
         {"_id": ride_oid, "rider_id": request.user["_id"], "status": "accepted"},
-        {"$set": {"rider_verified": True, "verified_at": now()}}
+        {"$set": {"rider_verified": True, "verified_at": now(), "booking_state": "accepted"}}
     )
     if result.modified_count == 0:
         ride = rides.find_one({"_id": ride_oid})
@@ -1325,6 +1363,8 @@ def start_ride(ride_id):
     ride = rides.find_one({"_id": ride_oid, "driver_id": request.user["_id"], "status": "accepted"})
     if not ride:
         return jsonify({"error": "Ride not found or not assigned to you"}), 404
+    if not ride_is_today(ride):
+        return jsonify({"error": "This ride is booked for " + str(ride.get("scheduled_date") or "a future date") + ". You can start it on the scheduled date."}), 400
     if not ride.get("rider_verified"):
         return jsonify({"error": "The rider has not verified you yet. Ask them to verify you in their dashboard."}), 403
 
@@ -1692,7 +1732,8 @@ def toggle_driver_online():
             "driver_id": request.user["_id"],
             "status": {"$in": ["accepted", "ongoing", "pending_completion"]}
         })
-        if active_ride:
+        # A future accepted ride is a booking, not today's active work.
+        if active_ride and (active_ride.get("status") != "accepted" or ride_is_today(active_ride)):
             return jsonify({
                 "error": "You cannot go offline while you have an active ride. Complete or unassign the ride first.",
                 "active_ride": active_ride["status"]

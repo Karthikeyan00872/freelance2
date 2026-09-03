@@ -447,6 +447,22 @@
                 window.setTimeout(function() { if (toast.isConnected) toast.remove(); }, 4500);
             }
 
+            function localDateString(date) {
+                var d = date || new Date();
+                var y = d.getFullYear();
+                var m = String(d.getMonth() + 1).padStart(2, '0');
+                var day = String(d.getDate()).padStart(2, '0');
+                return y + '-' + m + '-' + day;
+            }
+
+            function isRideToday(ride) {
+                return !!ride && (!ride.scheduled_date || ride.scheduled_date === localDateString());
+            }
+
+            function isFutureBookedRide(ride) {
+                return !!ride && !!ride.scheduled_date && ride.scheduled_date > localDateString();
+            }
+
             function formatDistance(meters) {
                 if (meters < 1000) return Math.round(meters) + ' m';
                 return (meters / 1000).toFixed(1) + ' km';
@@ -507,6 +523,14 @@
                 routeLayerGroup.clearLayers();
 
                 if (!ride || (ride.status !== 'accepted' && ride.status !== 'ongoing')) {
+                    return;
+                }
+                if (ride.status === 'accepted' && isFutureBookedRide(ride)) {
+                    return;
+                }
+
+                // **** FIX: skip routing for hourly trips ****
+                if (ride.trip_type === 'hourly') {
                     return;
                 }
 
@@ -590,7 +614,7 @@
                 } else {
                     pickupMarker.setOpacity(0);
                 }
-                if (ride && ride.dropoff_location && ride.dropoff_location.coordinates) {
+                if (ride && ride.trip_type !== 'hourly' && ride.dropoff_location && ride.dropoff_location.coordinates) {
                     var coords = ride.dropoff_location.coordinates;
                     dropoffMarker.setLatLng([coords[1], coords[0]]).setOpacity(1);
                     dropoffMarker.bindPopup('Dropoff: ' + (ride.dropoff_address || ''));
@@ -659,6 +683,26 @@
                         driverStatusLabel(ride) + '</p>';
                     return;
                 }
+
+                // For hourly rides, show custom info (no distance/ETA)
+                if (ride.trip_type === 'hourly') {
+                    tripSheetEl.innerHTML = `
+                        <div class="stat">
+                            <div class="stat-label">Status</div>
+                            <div class="stat-value" style="font-size:14px;">${driverStatusLabel(ride)}</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-label">Pickup</div>
+                            <div class="stat-value" style="font-size:14px;">${ride.pickup_address || '—'}</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-label">Package</div>
+                            <div class="stat-value">${ride.duration_hours || 0}h</div>
+                        </div>
+                    `;
+                    return;
+                }
+
                 var label = ride.status === 'accepted' ? 'To Pickup' : 'To Drop';
                 tripSheetEl.innerHTML =
                     '<div class="stat"><div class="stat-label">Status</div><div class="stat-value" style="font-size:14px;">' + driverStatusLabel(ride) + '</div></div>' +
@@ -1058,7 +1102,7 @@
                 cancelRideBtn.style.display = "none";
 
                 // Update Online button state based on active ride
-                if (ride && ['accepted', 'ongoing', 'pending_completion'].includes(ride.status)) {
+                if (ride && (ride.status === 'ongoing' || ride.status === 'pending_completion' || (ride.status === 'accepted' && isRideToday(ride)))) {
                     onlineToggle.disabled = true;
                     onlineToggle.title = "Cannot go offline while on an active ride";
                     onlineToggle.style.opacity = "0.6";
@@ -1109,12 +1153,21 @@
                     badgeEl.style.color = "#856404";
                     acceptRideBtn.style.display = "inline-flex";
                 } else if (ride.status === "accepted") {
-                    badgeEl.textContent = "Ride Accepted · Pick up passenger";
-                    badgeEl.style.background = "#d4edda";
-                    badgeEl.style.color = "#155724";
-                    startRideBtn.style.display = "inline-flex";
-                    cancelRideBtn.style.display = "inline-flex";
-                    cancelRideBtn.textContent = "Unassign Ride";
+                    if (isFutureBookedRide(ride)) {
+                        badgeEl.textContent = "Ride Booked · " + ride.scheduled_date;
+                        badgeEl.style.background = "#fff3cd";
+                        badgeEl.style.color = "#856404";
+                        startRideBtn.style.display = "none";
+                        cancelRideBtn.style.display = "inline-flex";
+                        cancelRideBtn.textContent = "Unassign Ride";
+                    } else {
+                        badgeEl.textContent = "Ride Accepted · Pick up passenger";
+                        badgeEl.style.background = "#d4edda";
+                        badgeEl.style.color = "#155724";
+                        startRideBtn.style.display = "inline-flex";
+                        cancelRideBtn.style.display = "inline-flex";
+                        cancelRideBtn.textContent = "Unassign Ride";
+                    }
                 } else if (ride.status === "ongoing") {
                     badgeEl.textContent = "Trip in Progress · Heading to drop";
                     badgeEl.style.background = "#cce5ff";
@@ -1142,8 +1195,8 @@
                     ridesListEl.innerHTML = '<p class="muted">Go online to see available rides.</p>';
                     return;
                 }
-                if (currentRide && (currentRide.status === 'accepted' || currentRide.status === 'ongoing' ||
-                        currentRide.status === 'pending_completion')) {
+                if (currentRide && (currentRide.status === 'ongoing' || currentRide.status === 'pending_completion' ||
+                        (currentRide.status === 'accepted' && isRideToday(currentRide)))) {
                     ridesListEl.innerHTML = '<p class="muted">You have an active ride. Complete or cancel it first.</p>';
                     return;
                 }
@@ -1185,9 +1238,12 @@
                             var fare = ride.fare ? "₹" + Number(ride.fare).toLocaleString("en-IN") : "—";
                             html += '<div class="ride-item">';
                             html += '  <div class="info">';
-                            html += '    <strong>' + (ride.pickup_address || 'Pickup') + ' → ' + (ride
-                                .dropoff_address || 'Drop') + '</strong>';
-                            html += '    <span class="dist">' + distStr + ' · ' + fare + '</span>';
+                            var routeLabel = ride.trip_type === 'hourly'
+                                ? (ride.pickup_address || 'Pickup') + ' · Hourly'
+                                : (ride.pickup_address || 'Pickup') + ' → ' + (ride.dropoff_address || 'Drop');
+                            var scheduleLabel = ride.scheduled_date ? ' · ' + ride.scheduled_date + (ride.scheduled_time ? ' ' + ride.scheduled_time : '') : '';
+                            html += '    <strong>' + routeLabel + '</strong>';
+                            html += '    <span class="dist">' + distStr + ' · ' + fare + scheduleLabel + '</span>';
                             html += '  </div>';
                             html +=
                                 '  <button class="btn btn-sm accept-btn" data-ride-id="' + ride.id + '" style="background:var(--green); color:#fff; box-shadow:0 4px 0 var(--green-dark);">Accept</button>';
@@ -1204,8 +1260,13 @@
                                 btn.textContent = 'Accepting...';
                                 api('/api/rides/' + rideId + '/accept', { method: 'POST' })
                                     .then(function(res) {
-                                        showMessage("Ride accepted! Head to pickup.", "success");
-                                        displayRide(res.ride);
+                                        var acceptedRide = res.ride || ride;
+                                        if (isFutureBookedRide(acceptedRide)) {
+                                            showMessage("Ride booked for " + acceptedRide.scheduled_date + ". You can continue working on today's rides.", "success");
+                                        } else {
+                                            showMessage("Ride accepted! Head to pickup.", "success");
+                                        }
+                                        displayRide(acceptedRide);
                                         fetchAvailableRides();
                                     })
                                     .catch(function(err) {
@@ -1320,6 +1381,7 @@
                         .then(function(act) {
                             if (act && act.ride) {
                                 displayRide(act.ride);
+                                if (isOnline && isFutureBookedRide(act.ride)) fetchAvailableRides();
                             } else {
                                 displayRide(null);
                                 if (isOnline) fetchAvailableRides();
@@ -1358,7 +1420,7 @@
 
             // --- Polling fallbacks ---
             setInterval(function() {
-                if (isOnline && !currentRide) fetchAvailableRides();
+                if (isOnline && (!currentRide || isFutureBookedRide(currentRide))) fetchAvailableRides();
             }, 15000);
 
             setInterval(function() {

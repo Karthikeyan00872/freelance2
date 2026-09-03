@@ -73,6 +73,19 @@
             }
         }
 
+        /* For Chrome, Safari, Opera, and Edge */
+        html::-webkit-scrollbar {
+            display: none;
+        }
+
+        /* For Firefox and IE/Edge */
+        html {
+            -ms-overflow-style: none;
+            /* IE and Edge */
+            scrollbar-width: none;
+            /* Firefox */
+        }
+
         html {
             scroll-behavior: smooth;
         }
@@ -1949,9 +1962,8 @@
             </div>
         </section>
 
-        <!-- ============ AIRPORT PAGE ============ -->
+        <!-- ============ AIRPORT PAGE (direction-aware & city-locked) ============ -->
         <section class="page" data-page="airport">
-            <!--<img class="route-banner" src="cm.png" alt="VandiGo city ride"> -->
             <div class="hero">
                 <div class="container hero-grid">
                     <div>
@@ -1976,18 +1988,34 @@
                             <div class="ticket-body">
                                 <div class="ticket-ref"><span>BOOKING · <span
                                             id="refAirport">VG-3000</span></span><span>Airport transfer</span></div>
+                                <!-- Direction toggle -->
                                 <div class="toggle-pair" id="airportToggle">
                                     <button type="button" class="active" data-dir="pickup">Airport → City</button>
                                     <button type="button" data-dir="drop">City → Airport</button>
                                 </div>
+                                <!-- City/Town selection – city is locked to airport city -->
+                                <div class="field-row" id="apLocationFields">
+                                    <div class="field">
+                                        <label for="ap-city" id="apCityLabel">City</label>
+                                        <select class="input" id="ap-city" disabled>
+                                            <!-- populated from airport -->
+                                        </select>
+                                    </div>
+                                    <div class="field">
+                                        <label for="ap-town" id="apTownLabel">Town</label>
+                                        <select class="input town-select" id="ap-town">
+                                            <!-- populated from airport city -->
+                                        </select>
+                                    </div>
+                                </div>
                                 <div class="field"><label for="ap-flight">Flight Number</label><input class="input"
                                         id="ap-flight" placeholder="e.g. 6E 5312"></div>
-                                <div class="field"><label for="ap-terminal">Terminal / City</label>
+                                <div class="field"><label for="ap-terminal">Terminal / Airport</label>
                                     <select class="input" id="ap-terminal">
-                                        <option>Madurai Airport (IXM)</option>
-                                        <option>Chennai Airport (MAA)</option>
-                                        <option>Coimbatore Airport (CJB)</option>
-                                        <option>Trichy Airport (TRZ)</option>
+                                        <option value="Madurai Airport (IXM)">Madurai Airport (IXM)</option>
+                                        <option value="Chennai Airport (MAA)">Chennai Airport (MAA)</option>
+                                        <option value="Coimbatore Airport (CJB)">Coimbatore Airport (CJB)</option>
+                                        <option value="Trichy Airport (TRZ)">Trichy Airport (TRZ)</option>
                                     </select>
                                 </div>
                                 <div class="perforation"></div>
@@ -2495,22 +2523,14 @@
             }
 
             /* ---------- CROSS-BROWSER GOOGLE SIGN-IN ---------- */
-            // One Tap (google.accounts.id.prompt()) is blocked by default in
-            // Firefox, Safari, Brave, and browsers with third-party cookie
-            // restrictions. Instead, we pre-render Google's real sign-in
-            // buttons into hidden containers on page load, then forward clicks
-            // on our custom "Continue with Google" buttons to them. Google's
-            // rendered button opens a standard popup window, which works
-            // everywhere.
             var pendingGoogleSignup = false;
             var googleButtonsReady = false;
 
             function initGoogleButtons() {
                 if (googleButtonsReady) return;
                 api("/api/config").then(function (cfg) {
-                    if (!cfg.google_client_id) return; // not configured — nothing to render
+                    if (!cfg.google_client_id) return;
                     if (!window.google || !window.google.accounts || !window.google.accounts.id) {
-                        // accounts.google.com/gsi/client script hasn't finished loading yet
                         setTimeout(initGoogleButtons, 300);
                         return;
                     }
@@ -2532,14 +2552,10 @@
                     }
                     googleButtonsReady = true;
                 }).catch(function () {
-                    // /api/config not reachable yet — try again shortly.
                     setTimeout(initGoogleButtons, 500);
                 });
             }
 
-            // Google's rendered button draws an invisible, clickable overlay
-            // (role="button") over its iframe in the *parent* document, so it
-            // can be triggered programmatically without touching iframe internals.
             function clickRenderedGoogleButton(containerId) {
                 var container = document.getElementById(containerId);
                 var innerButton = container && container.querySelector('div[role="button"]');
@@ -2559,8 +2575,6 @@
                 }
             }
 
-            // Pre-render the real buttons as soon as possible so the first
-            // click on our custom button can forward to them immediately.
             initGoogleButtons();
 
             /* ---------- ROUTING ---------- */
@@ -2641,6 +2655,10 @@
                 "Cuddalore": ["Cuddalore", "Chidambaram", "Panruti", "Neyveli"]
             };
 
+            /* ---------------------------------------------------------------
+               FIX: Added airport coordinates to cityCoords so the frontend
+               correctly calculates distances to the actual airport location.
+            --------------------------------------------------------------- */
             var cityCoords = {
                 "Madurai": { lng: 78.1198, lat: 9.9252 },
                 "Melur": { lng: 78.3393, lat: 10.0326 },
@@ -2719,7 +2737,19 @@
                 "Cuddalore": { lng: 79.7500, lat: 11.7500 },
                 "Chidambaram": { lng: 79.6900, lat: 11.4000 },
                 "Panruti": { lng: 79.5500, lat: 11.7700 },
-                "Neyveli": { lng: 79.5100, lat: 11.6100 }
+                "Neyveli": { lng: 79.5100, lat: 11.6100 },
+                // ---------- AIRPORT COORDINATES ----------
+                "madurai airport (ixm)": { lng: 78.0934, lat: 9.8345 },
+                "chennai airport (maa)": { lng: 80.1709, lat: 12.9941 },
+                "coimbatore airport (cjb)": { lng: 77.0434, lat: 11.0298 },
+                "trichy airport (trz)": { lng: 78.7097, lat: 10.7654 }
+            };
+
+            var airportCityMap = {
+                "Madurai Airport (IXM)": "Madurai",
+                "Chennai Airport (MAA)": "Chennai",
+                "Coimbatore Airport (CJB)": "Coimbatore",
+                "Trichy Airport (TRZ)": "Trichy"
             };
 
             function getTownsForCity(city) {
@@ -2779,19 +2809,15 @@
             }
 
             function initTownOptions() {
-                // Town options exist ONLY for oneway and hourly.
+                // Oneway
                 populateCitySelect("ow-pickup-city", "Madurai");
                 populateCitySelect("ow-drop-city", "Chennai");
-                populateCitySelect("hp-city", "Madurai");
-
                 populateTownSelect("ow-pickup-city", "ow-pickup-town");
                 populateTownSelect("ow-drop-city", "ow-drop-town");
-                populateTownSelect("hp-city", "hp-town");
 
                 var pairs = [
                     ["ow-pickup-city", "ow-pickup-town"],
-                    ["ow-drop-city", "ow-drop-town"],
-                    ["hp-city", "hp-town"]
+                    ["ow-drop-city", "ow-drop-town"]
                 ];
                 pairs.forEach(function (pair) {
                     var citySelect = document.getElementById(pair[0]);
@@ -2807,11 +2833,126 @@
                 document.querySelectorAll("#ow-pickup-town, #ow-drop-town").forEach(function (select) {
                     select.addEventListener("change", calculateOnewayFare);
                 });
+
+                // Hourly
+                populateCitySelect("hp-city", "Madurai");
+                populateTownSelect("hp-city", "hp-town");
+                var hpCity = document.getElementById("hp-city");
+                if (hpCity) {
+                    hpCity.addEventListener("change", function () {
+                        populateTownSelect("hp-city", "hp-town");
+                    });
+                }
+
+                // Airport – city is locked to airport city; we populate town based on airport selection.
+                var apTerminal = document.getElementById("ap-terminal");
+                var apCity = document.getElementById("ap-city");
+                var apTown = document.getElementById("ap-town");
+
+                function updateAirportLocation() {
+                    var terminal = apTerminal.value;
+                    var city = airportCityMap[terminal] || "Madurai";
+                    // Lock city select
+                    apCity.innerHTML = "";
+                    var opt = document.createElement("option");
+                    opt.value = city;
+                    opt.textContent = city;
+                    apCity.appendChild(opt);
+                    apCity.disabled = true;
+                    // Populate towns for that city
+                    var towns = getTownsForCity(city);
+                    apTown.innerHTML = "";
+                    towns.forEach(function (t) {
+                        var o = document.createElement("option");
+                        o.value = t;
+                        o.textContent = t;
+                        apTown.appendChild(o);
+                    });
+                    if (towns.indexOf(city) !== -1) apTown.value = city;
+                    updateAirportFare();
+                }
+
+                apTerminal.addEventListener("change", updateAirportLocation);
+
+                // Direction toggle for airport (label only)
+                var apToggle = document.getElementById("airportToggle");
+                if (apToggle) {
+                    apToggle.querySelectorAll("button").forEach(function (btn) {
+                        btn.addEventListener("click", function () {
+                            apToggle.querySelectorAll("button").forEach(function (b) { b.classList.remove("active"); });
+                            btn.classList.add("active");
+                            updateAirportDirection(btn.getAttribute("data-dir"));
+                        });
+                    });
+                }
+
+                // Initial setup
+                updateAirportLocation();
+                // Initial direction
+                updateAirportDirection("pickup");
             }
 
-            initTownOptions();
+            // Airport direction state
+            var airportDirection = "pickup"; // "pickup" = Airport → City, "drop" = City → Airport
 
-            /* ---------- ONEWAY FARE CALCULATION ---------- */
+            function updateAirportDirection(dir) {
+                airportDirection = dir;
+                var cityLabel = document.getElementById("apCityLabel");
+                var townLabel = document.getElementById("apTownLabel");
+                if (dir === "pickup") {
+                    cityLabel.textContent = "Drop City";
+                    townLabel.textContent = "Drop Town";
+                } else {
+                    cityLabel.textContent = "Pickup City";
+                    townLabel.textContent = "Pickup Town";
+                }
+                updateAirportFare();
+            }
+
+            // Airport fare calculation (distance from city to airport)
+            function updateAirportFare() {
+                var fareEl = document.getElementById("airportFare");
+                if (!fareEl) return;
+                var terminalSelect = document.getElementById("ap-terminal");
+                var townSelect = document.getElementById("ap-town");
+                if (!terminalSelect || !townSelect) return;
+
+                var terminal = terminalSelect.value;
+                var town = townSelect.value;
+
+                // Get airport coordinates from cityCoords using the terminal name
+                var airportKey = terminal.toLowerCase().trim();
+                var airportCoord = cityCoords[airportKey];
+                if (!airportCoord) {
+                    // fallback: extract city name from terminal
+                    var cityName = terminal.split(" ")[0];
+                    var lowerCity = cityName.toLowerCase();
+                    if (cityCoords[lowerCity]) {
+                        airportCoord = cityCoords[lowerCity];
+                    } else {
+                        airportCoord = cityCoords["madurai"];
+                    }
+                }
+
+                var townCoord = getTownCoords(town);
+                if (!townCoord) {
+                    // fallback: try city from airport
+                    var city = airportCityMap[terminal] || "Madurai";
+                    townCoord = getTownCoords(city);
+                }
+                if (!townCoord) {
+                    fareEl.textContent = "₹650";
+                    return;
+                }
+
+                var dist = haversine(townCoord.lat, townCoord.lng, airportCoord.lat, airportCoord.lng);
+                var fare = Math.max(200, Math.round(dist * 12 + 50));
+                fare = Math.min(fare, 1200);
+                fareEl.textContent = "₹" + fare.toLocaleString("en-IN");
+                fareEl.dataset.fare = fare;
+            }
+
+            // --- Oneway fare calculation ---
             function calculateOnewayFare() {
                 var fromTownEl = document.getElementById("ow-pickup-town");
                 var toTownEl = document.getElementById("ow-drop-town");
@@ -2853,19 +2994,6 @@
                     if (fareEl) fareEl.textContent = "₹" + (selectedHourly * hourlyRate).toLocaleString("en-IN");
                 });
             });
-
-            /* ---------- AIRPORT TOGGLE & FARE ---------- */
-            var airportToggle = document.getElementById("airportToggle");
-            var airportDirection = "pickup";
-            if (airportToggle) {
-                airportToggle.querySelectorAll("button").forEach(function (btn) {
-                    btn.addEventListener("click", function () {
-                        airportToggle.querySelectorAll("button").forEach(function (b) { b.classList.remove("active"); });
-                        btn.classList.add("active");
-                        airportDirection = btn.getAttribute("data-dir") || "pickup";
-                    });
-                });
-            }
 
             /* ---------- FLEET CAROUSEL ---------- */
             var cabScroll = document.querySelector(".cab-scroll");
@@ -3240,8 +3368,6 @@
             }
 
             // Shared handler: a rider can only have one active ride at a time
-            // (Single Active Ride Lock). Give a clear, actionable message
-            // instead of a raw booking error when that's the reason it failed.
             function handleBookingError(err, btn, originalLabel) {
                 var isActiveRideConflict = /already have an active ride/i.test(err.message || "");
                 if (isActiveRideConflict) {
@@ -3312,7 +3438,7 @@
                                 trip_type: "hourly",
                                 duration_hours: selectedHourly,
                                 pickup_address: city,
-                                dropoff_address: city + " (Hourly standby)",
+                                dropoff_address: "",
                                 scheduled_date: date,
                                 scheduled_time: time,
                                 passenger_phone: phone,
@@ -3328,7 +3454,7 @@
                 });
             }
 
-            // 3. Airport Transfer Booking
+            // 3. Airport Transfer Booking (with direction-aware & city-locked)
             var bookAirportBtn = document.getElementById("bookAirportBtn");
             if (bookAirportBtn) {
                 bookAirportBtn.addEventListener("click", function () {
@@ -3339,8 +3465,27 @@
                         var time = document.getElementById("ap-time").value || nowTimeStr;
                         var phone = document.getElementById("ap-phone").value.trim() || session.phone;
                         var email = document.getElementById("ap-email").value.trim() || session.email;
-                        var pickupAddr = airportDirection === "pickup" ? terminal : "City Center";
-                        var dropoffAddr = airportDirection === "pickup" ? "City Center" : terminal;
+                        var town = document.getElementById("ap-town").value;
+
+                        // Resolve the airport location
+                        var airportName = terminal;
+                        var airportCoord = cityCoords[terminal.toLowerCase().trim()] || cityCoords["madurai"];
+
+                        // Build pickup and dropoff addresses based on direction
+                        var pickupAddr, dropoffAddr;
+                        if (airportDirection === "pickup") {
+                            // Airport → City: pickup = airport, drop = town
+                            pickupAddr = airportName;
+                            dropoffAddr = town;
+                        } else {
+                            // City → Airport: pickup = town, drop = airport
+                            pickupAddr = town;
+                            dropoffAddr = airportName;
+                        }
+
+                        // Get fare from the fare element (computed)
+                        var fareEl = document.getElementById("airportFare");
+                        var fare = fareEl ? parseInt(fareEl.dataset.fare || 650) : 650;
 
                         bookAirportBtn.disabled = true;
                         bookAirportBtn.textContent = "Booking transfer...";
@@ -3356,7 +3501,7 @@
                                 scheduled_time: time,
                                 passenger_phone: phone,
                                 passenger_email: email,
-                                estimated_fare: 650
+                                estimated_fare: fare
                             })
                         }).then(function (res) {
                             window.location.href = "/frontend/rider_dashboard.html";
@@ -3366,6 +3511,11 @@
                     });
                 });
             }
+
+            // init town options after DOM ready
+            initTownOptions();
+            // Initial fare update for airport
+            updateAirportFare();
 
         })();
     </script>

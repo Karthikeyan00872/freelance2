@@ -79,26 +79,21 @@
         .debug-json { background: #f0ede8; padding: 10px; border-radius: 8px; font-size: 12px; overflow: auto; max-height: 200px; margin-top: 10px; border: 1px solid var(--border); display: none; }
         .debug-json.show { display: block; }
 
-        /* ensure Leaflet zoom controls are always visible & styled to match the app */
         .leaflet-control-zoom { border: 2px solid rgba(0,0,0,.08) !important; border-radius: 8px !important; background: #fff !important; box-shadow: 0 4px 12px rgba(0,0,0,.12) !important; }
         .leaflet-control-zoom a { background: #fff !important; color: var(--ink) !important; font-weight: 700 !important; width: 34px !important; height: 34px !important; line-height: 34px !important; border-radius: 0 !important; border-bottom: 1px solid rgba(0,0,0,.06) !important; }
         .leaflet-control-zoom a:last-child { border-bottom: 0 !important; }
         .leaflet-control-zoom a:hover { background: var(--paper) !important; }
-        /* hide the built-in routing directions panel — replaced by .trip-sheet */
         .leaflet-routing-container { display: none !important; }
 
-        /* Trip Sheet: fills the space under the map with live trip stats */
         .trip-sheet { margin-top: 14px; padding: 14px 18px; background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-md); display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
         .trip-sheet .stat { text-align: center; }
         .trip-sheet .stat-label { font: 600 10px 'IBM Plex Mono', monospace; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); }
         .trip-sheet .stat-value { font: 700 19px 'Oswald', sans-serif; margin-top: 4px; }
 
-        /* Hourly rental live clock */
         .hourly-timer { margin-top: 14px; padding: 12px 18px; border-radius: var(--radius-md); background: linear-gradient(135deg, var(--marigold), var(--marigold-dark)); color: #fff; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
         .hourly-timer.overtime { background: linear-gradient(135deg, var(--red), #8e2a1e); }
         .hourly-timer .clock { font: 700 24px 'IBM Plex Mono', monospace; letter-spacing: .03em; }
 
-        /* Custom modal popups — replaces native confirm()/alert() */
         .modal-backdrop { position: fixed; inset: 0; background: rgba(27,27,31,.65); backdrop-filter: blur(3px); display: none; align-items: center; justify-content: center; z-index: 3000; padding: 20px; }
         .modal-backdrop.show { display: flex; }
         .modal-box { background: var(--paper-raised); border-radius: var(--radius-lg); box-shadow: 0 20px 50px var(--shadow); max-width: 420px; width: 100%; padding: 26px; text-align: center; animation: modal-in .18s ease-out; }
@@ -106,6 +101,24 @@
         .modal-box p { color: var(--ink-soft); margin: 8px 0 20px; }
         .modal-actions { display: flex; gap: 10px; }
         .modal-actions .btn { flex: 1; }
+
+        .otp-display-box {
+            background: #fbe7c6;
+            padding: 20px;
+            border-radius: var(--radius-md);
+            text-align: center;
+            margin: 10px 0;
+        }
+        .otp-display-box .otp-code {
+            font: 700 36px 'IBM Plex Mono', monospace;
+            letter-spacing: 10px;
+            color: var(--marigold-dark);
+            background: #fff;
+            padding: 12px 20px;
+            border-radius: 8px;
+            display: inline-block;
+            margin: 8px 0;
+        }
 
         @media(max-width:850px) {
             .grid { grid-template-columns: 1fr }
@@ -169,15 +182,16 @@
                     <button class="btn" id="verifyDriverBtn" style="background:var(--green); color:#fff; box-shadow:0 6px 0 var(--green-dark);">Verify Driver</button>
                 </div>
 
-                <!-- OTP Section (shown when ride is pending_completion) -->
+                <!-- OTP Display Section (shown when ride is pending_completion) -->
                 <div id="otpSection" style="display:none; margin-top:16px; border-top:1px solid var(--border); padding-top:16px;">
-                    <p>Your driver will show you a UPI QR code for the fare. After you pay, read them the OTP below (also emailed to you) so they can confirm and finish the trip.</p>
-                    <div style="display:flex; gap:10px; align-items:center;">
-                        <input type="text" id="otpInput" placeholder="6-digit OTP (from email)" style="flex:1; padding:10px; border:1px solid var(--border); border-radius:8px; font-size:16px;">
-                        <button class="btn" id="verifyOtpBtn" style="background:var(--green); color:#fff; box-shadow:0 6px 0 var(--green-dark);">Verify it myself</button>
+                    <div style="background: #fff3cd; padding: 16px; border-radius: var(--radius-md); border-left: 4px solid var(--marigold);">
+                        <p style="margin: 0 0 8px 0; font-weight: 600; color: #856404;">📧 OTP Sent to Your Email</p>
+                        <p style="margin: 0; color: #856404; font-size: 14px;">Your driver has completed the trip. Please check your email for the 6-digit OTP and share it with your driver so they can complete the trip.</p>
                     </div>
-                    <button type="button" id="resendOtpBtn" style="margin-top:10px; background:none; border:none; color:var(--ink-soft); text-decoration:underline; font-size:12px; cursor:pointer; padding:0;">Didn't get the email? Resend OTP</button>
-                    <p class="muted" style="margin-top:8px; font-size:12px;">Tip: if your driver enters this OTP on their end after collecting payment, the trip will complete automatically — you don't have to do anything here.</p>
+                    <div style="margin-top: 12px; display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button type="button" id="resendOtpBtn" style="background:none; border:none; color:var(--ink-soft); text-decoration:underline; font-size:12px; cursor:pointer; padding:0;">Didn't get the email? Resend OTP</button>
+                    </div>
+                    <p class="muted" style="margin-top:8px; font-size:12px;">⚠️ Important: The driver will ask you for this OTP. Do not share it with anyone else.</p>
                 </div>
 
                 <div style="display:flex; gap:10px; margin-top:18px; flex-wrap:wrap;">
@@ -216,7 +230,7 @@
         </div>
     </div>
 
-    <!-- Generic confirm modal — replaces native confirm() -->
+    <!-- Generic confirm modal -->
     <div id="confirmModal" class="modal-backdrop">
         <div class="modal-box">
             <h3 id="confirmModalTitle">Are you sure?</h3>
@@ -298,11 +312,6 @@
             var routeControl = null;
             var lastRouteSummary = null;
 
-            // Builds the map bounds from only the markers that are actually
-            // placed right now (fixes the old bug where hidden [0,0] markers
-            // dragged the auto-zoom out to the middle of the ocean), and picks
-            // a sensible zoom automatically: a single marker gets a close-up
-            // street-level view, multiple markers get a padded fit-to-bounds.
             function refitMap() {
                 var visible = [riderMarker];
                 if (driverVisible) visible.push(driverMarker);
@@ -350,8 +359,6 @@
             function updateRiderMarker(lat, lng) {
                 riderMarker.setLatLng([lat, lng]);
                 if (!hasGeoFix) {
-                    // First real GPS fix — automatically zoom in from the default
-                    // city-level view to a close, street-level position.
                     hasGeoFix = true;
                     map.flyTo([lat, lng], 16, { duration: 1 });
                 } else if (!currentActiveRide) {
@@ -372,15 +379,14 @@
                     pickupMarker.bindPopup('Pickup: ' + (ride.pickup_address || ''));
                     pickupVisible = true;
                 } else { pickupMarker.setOpacity(0); pickupVisible = false; }
-                if (ride && ride.dropoff_location && ride.dropoff_location.coordinates) {
+                if (ride && ride.trip_type !== 'hourly' && ride.dropoff_location && ride.dropoff_location.coordinates) {
                     var coords = ride.dropoff_location.coordinates;
                     dropoffMarker.setLatLng([coords[1], coords[0]]).setOpacity(1);
                     dropoffMarker.bindPopup('Dropoff: ' + (ride.dropoff_address || ''));
                     dropoffVisible = true;
                 } else { dropoffMarker.setOpacity(0); dropoffVisible = false; }
 
-                // Draw route ONLY when ride is not 'requested'
-                if (ride && ride.pickup_location && ride.pickup_location.coordinates &&
+                if (ride && ride.trip_type !== 'hourly' && ride.pickup_location && ride.pickup_location.coordinates &&
                     ride.dropoff_location && ride.dropoff_location.coordinates &&
                     ride.status !== 'requested') {
                     var pCoords = ride.pickup_location.coordinates;
@@ -398,7 +404,6 @@
                 updateTripSheet(ride, lastRouteSummary);
             }
 
-            // --- Trip Sheet: fills the space under the map with live stats ---
             var tripSheetEl = document.getElementById('tripSheet');
 
             function formatDistance(meters) {
@@ -432,6 +437,13 @@
                 if (!ride || ride.status === 'completed' || ride.status === 'cancelled') {
                     tripSheetEl.innerHTML = '<p class="muted" style="grid-column:1/-1; text-align:center; padding:6px 0;">' +
                         (ride ? statusLabel(ride) : 'Book a ride to see live trip stats here.') + '</p>';
+                    return;
+                }
+                if (ride.trip_type === 'hourly') {
+                    tripSheetEl.innerHTML =
+                        '<div class="stat"><div class="stat-label">Status</div><div class="stat-value" style="font-size:14px;">' + statusLabel(ride) + '</div></div>' +
+                        '<div class="stat"><div class="stat-label">Pickup</div><div class="stat-value" style="font-size:14px;">' + (ride.pickup_address || '—') + '</div></div>' +
+                        '<div class="stat"><div class="stat-label">Package</div><div class="stat-value">' + (ride.duration_hours || 0) + 'h</div></div>';
                     return;
                 }
                 tripSheetEl.innerHTML =
@@ -476,8 +488,6 @@
             var verifySection = document.getElementById('verifySection');
             var verifyDriverBtn = document.getElementById('verifyDriverBtn');
             var otpSection = document.getElementById('otpSection');
-            var otpInput = document.getElementById('otpInput');
-            var verifyOtpBtn = document.getElementById('verifyOtpBtn');
             var resendOtpBtn = document.getElementById('resendOtpBtn');
             var ratingSection = document.getElementById('ratingSection');
             var starContainer = document.getElementById('starContainer');
@@ -488,7 +498,6 @@
             var hourlyTimerLabel = document.getElementById('hourlyTimerLabel');
             var hourlyTimerInterval = null;
 
-            // --- Custom confirm modal (replaces native confirm()) ---
             var confirmModal = document.getElementById('confirmModal');
             var confirmModalTitle = document.getElementById('confirmModalTitle');
             var confirmModalMessage = document.getElementById('confirmModalMessage');
@@ -510,11 +519,8 @@
             confirmModalCancel.addEventListener('click', function () { closeConfirm(false); });
             confirmModal.addEventListener('click', function (e) { if (e.target === confirmModal) closeConfirm(false); });
 
-            // --- Hourly Rental Timer ---
             function parseUtcDate(iso) {
                 if (!iso) return null;
-                // Server sends naive ISO timestamps (UTC, no offset) — force UTC parsing
-                // so the countdown isn't thrown off by the browser's local timezone.
                 var hasOffset = /Z$|[+-]\d{2}:\d{2}$/.test(iso);
                 var d = new Date(hasOffset ? iso : iso + 'Z');
                 return isNaN(d.getTime()) ? null : d;
@@ -553,7 +559,6 @@
                 hourlyTimerInterval = setInterval(tick, 1000);
             }
 
-            // Star rating handler
             starContainer.addEventListener('click', function(e) {
                 if (e.target.dataset.value) {
                     selectedRating = parseInt(e.target.dataset.value);
@@ -564,7 +569,6 @@
                 }
             });
 
-            // Verify driver
             verifyDriverBtn.addEventListener('click', function() {
                 if (!currentActiveRide) return;
                 verifyDriverBtn.disabled = true;
@@ -575,25 +579,6 @@
                     })
                     .catch(function(err) { showMessage("Verification failed: " + err.message, "error"); })
                     .finally(function() { verifyDriverBtn.disabled = false; });
-            });
-
-            // Verify OTP
-            verifyOtpBtn.addEventListener('click', function() {
-                var otp = otpInput.value.trim();
-                if (!otp) { showMessage("Please enter the OTP.", "error"); return; }
-                if (!currentActiveRide) return;
-                verifyOtpBtn.disabled = true;
-                api('/api/rides/' + currentActiveRide.id + '/complete-verify', {
-                    method: 'POST',
-                    body: JSON.stringify({ otp: otp })
-                })
-                .then(function(res) {
-                    showMessage("Trip completed! Please rate your driver.", "success");
-                    loadActiveRide();
-                    loadHistory();
-                })
-                .catch(function(err) { showMessage("OTP verification failed: " + err.message, "error"); })
-                .finally(function() { verifyOtpBtn.disabled = false; });
             });
 
             var resendCooldownInterval = null;
@@ -620,7 +605,7 @@
                 resendOtpBtn.disabled = true;
                 api('/api/rides/' + currentActiveRide.id + '/resend-otp', { method: 'POST' })
                     .then(function () {
-                        showMessage("A new OTP has been emailed to you.", "success");
+                        showMessage("A new OTP has been emailed to you. Share it with your driver.", "success");
                         startResendCooldown(30);
                     })
                     .catch(function (err) {
@@ -629,7 +614,6 @@
                     });
             });
 
-            // Submit rating
             submitRatingBtn.addEventListener('click', function() {
                 if (selectedRating === 0) { showMessage("Please select a rating.", "error"); return; }
                 if (!currentActiveRide) return;
@@ -682,24 +666,33 @@
                 showMessage("Refreshed ride data", "success");
             });
 
+            function localDateString(date) {
+                var d = date || new Date();
+                var y = d.getFullYear();
+                var m = String(d.getMonth() + 1).padStart(2, '0');
+                var day = String(d.getDate()).padStart(2, '0');
+                return y + '-' + m + '-' + day;
+            }
+
+            function isRideToday(ride) {
+                return !!ride && (!ride.scheduled_date || ride.scheduled_date === localDateString());
+            }
+
+            function isFutureBookedRide(ride) {
+                return !!ride && !!ride.scheduled_date && ride.scheduled_date > localDateString();
+            }
+
             function updateRideUI(ride) {
                 console.log('🔄 updateRideUI called with ride:', ride);
                 currentActiveRide = ride;
                 debugJson.textContent = JSON.stringify(ride, null, 2);
 
-                // Hide all dynamic sections
                 verifySection.style.display = 'none';
                 otpSection.style.display = 'none';
-                // Only reset the resend-OTP button/cooldown when we're leaving
-                // pending_completion entirely — NOT on every re-render, since a
-                // successful resend itself triggers a ride_updated socket event
-                // that re-runs this function and would otherwise wipe out the
-                // cooldown timer we just started.
-                if (!ride || ride.status !== 'pending_completion') {
-                    if (resendCooldownInterval) { clearInterval(resendCooldownInterval); resendCooldownInterval = null; }
-                    resendOtpBtn.disabled = false;
-                    resendOtpBtn.textContent = "Didn't get the email? Resend OTP";
-                }
+                
+                if (resendCooldownInterval) { clearInterval(resendCooldownInterval); resendCooldownInterval = null; }
+                resendOtpBtn.disabled = false;
+                resendOtpBtn.textContent = "Didn't get the email? Resend OTP";
 
                 if (!ride) {
                     badgeEl.textContent = "No active ride";
@@ -724,7 +717,6 @@
                     return;
                 }
 
-                // Hourly rental live clock — countdown during the package, then overtime count-up
                 if (ride.trip_type === 'hourly' && ride.status === 'ongoing' && ride.started_at) {
                     startHourlyTimer(ride);
                 } else {
@@ -740,7 +732,7 @@
                 };
 
                 pickupEl.textContent = ride.pickup_address || "Pickup location";
-                dropoffEl.textContent = ride.dropoff_address || "Destination";
+                dropoffEl.textContent = ride.trip_type === 'hourly' ? "—" : (ride.dropoff_address || "Destination");
                 fareEl.textContent = ride.fare ? "₹" + Number(ride.fare).toLocaleString("en-IN") : "Calculating";
 
                 updateRideMarkers(ride);
@@ -756,7 +748,6 @@
                     driverMarker.setOpacity(0);
                     driverVisible = false;
                 } else if (ride.status === "accepted") {
-                    // Show driver info and verify button
                     if (ride.driver) {
                         driverNameEl.textContent = ride.driver.name || "Driver";
                         driverVehicleEl.textContent = (ride.driver.vehicle_model || "Sedan") + " · " + (ride.driver.license_plate || "TN-01-AB-1234");
@@ -768,12 +759,18 @@
                         driverRatingEl.textContent = "—";
                         assignedDriverPhone = "";
                     }
-                    badgeEl.textContent = "Driver accepted – please verify";
-                    badgeEl.style.background = "#d4edda";
-                    badgeEl.style.color = "#155724";
-                    // Show verification button only if not already verified
-                    if (!ride.rider_verified) {
-                        verifySection.style.display = 'block';
+                    if (isFutureBookedRide(ride)) {
+                        badgeEl.textContent = "Your ride was booked · " + ride.scheduled_date;
+                        badgeEl.style.background = "#fff3cd";
+                        badgeEl.style.color = "#856404";
+                        verifySection.style.display = 'none';
+                    } else {
+                        badgeEl.textContent = "Driver accepted – please verify";
+                        badgeEl.style.background = "#d4edda";
+                        badgeEl.style.color = "#155724";
+                        if (!ride.rider_verified) {
+                            verifySection.style.display = 'block';
+                        }
                     }
                 } else if (ride.status === "ongoing") {
                     if (ride.driver) {
@@ -802,7 +799,7 @@
                         driverRatingEl.textContent = "—";
                         assignedDriverPhone = "";
                     }
-                    badgeEl.textContent = "Trip pending – verify OTP to complete";
+                    badgeEl.textContent = "Trip pending – share OTP with driver";
                     badgeEl.style.background = "#fff3cd";
                     badgeEl.style.color = "#856404";
                     otpSection.style.display = 'block';
@@ -821,7 +818,6 @@
                     badgeEl.textContent = "Trip completed";
                     badgeEl.style.background = "#e2e3e5";
                     badgeEl.style.color = "#383d41";
-                    // Pop open the rating modal if this trip hasn't been rated yet
                     if (ride.rider_rating === undefined || ride.rider_rating === null) {
                         ratingSection.classList.add('show');
                     } else {
@@ -862,15 +858,17 @@
                             row.className = 'row';
                             var dateStr = r.created_at ? new Date(r.created_at).toLocaleDateString("en-IN", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
                             var statusBadge = r.status === "completed" ? '<span style="color:var(--green); font-weight:700;">Completed</span>' : (r.status === "cancelled" ? '<span style="color:var(--red); font-weight:700;">Cancelled</span>' : '<span style="color:var(--marigold-dark); font-weight:700;">' + r.status + '</span>');
-                            row.innerHTML = '<div><strong>' + (r.pickup_address || "Pickup") + ' → ' + (r.dropoff_address || "Drop") + '</strong><br><small class="muted">' + (r.trip_type ? r.trip_type.toUpperCase() : "TRIP") + ' · ' + dateStr + '</small></div><div><strong>₹' + Number(r.fare || 0).toLocaleString("en-IN") + '</strong><br><small>' + statusBadge + '</small></div>';
+                            var historyRoute = r.trip_type === 'hourly'
+                                ? (r.pickup_address || "Pickup") + ' · Hourly'
+                                : (r.pickup_address || "Pickup") + ' → ' + (r.dropoff_address || "Drop");
+                            var scheduledLabel = r.scheduled_date ? ' · ' + r.scheduled_date + (r.scheduled_time ? ' ' + r.scheduled_time : '') : '';
+                            row.innerHTML = '<div><strong>' + historyRoute + '</strong><br><small class="muted">' + (r.trip_type ? r.trip_type.toUpperCase() : "TRIP") + ' · ' + dateStr + scheduledLabel + '</small></div><div><strong>₹' + Number(r.fare || 0).toLocaleString("en-IN") + '</strong><br><small>' + statusBadge + '</small></div>';
                             listEl.appendChild(row);
                         });
                     })
                     .catch(function () {});
             }
 
-            // Continuously track the rider's real position (instead of a single
-            // one-shot lookup) so the marker and auto-zoom stay accurate as they move.
             function startGeoWatch() {
                 if (!navigator.geolocation) {
                     showMessage("Location services aren't available on this device — showing Madurai by default.", "error");
