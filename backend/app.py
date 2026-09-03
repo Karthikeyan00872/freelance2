@@ -1,6 +1,7 @@
 import os
 import secrets
 import smtplib
+import re
 from html import escape
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
@@ -126,7 +127,7 @@ ACTIVE_STATUSES = ["requested", "accepted", "ongoing"]
 ALLOWED_COMPLETION_STATUSES = ["pending_completion", "completed"]
 
 # ============================================================
-# EXPANDED TAMIL NADU CITY / TOWN DATABASE
+# EXPANDED TAMIL NADU CITY / TOWN DATABASE (including airports)
 # ============================================================
 TN_CITIES = {
     "madurai": {"lng": 78.1198, "lat": 9.9252, "name": "Madurai"},
@@ -207,27 +208,77 @@ TN_CITIES = {
     "chidambaram": {"lng": 79.6900, "lat": 11.4000, "name": "Chidambaram"},
     "panruti": {"lng": 79.5500, "lat": 11.7700, "name": "Panruti"},
     "neyveli": {"lng": 79.5100, "lat": 11.6100, "name": "Neyveli"},
+
+    # --- Airports (expanded with common variations) ---
     "madurai airport": {"lng": 78.0934, "lat": 9.8345, "name": "Madurai Airport (IXM)"},
+    "madurai international airport": {"lng": 78.0934, "lat": 9.8345, "name": "Madurai Airport (IXM)"},
     "madurai airport (ixm)": {"lng": 78.0934, "lat": 9.8345, "name": "Madurai Airport (IXM)"},
+    "ixm": {"lng": 78.0934, "lat": 9.8345, "name": "Madurai Airport (IXM)"},
     "chennai airport": {"lng": 80.1709, "lat": 12.9941, "name": "Chennai Airport (MAA)"},
+    "chennai international airport": {"lng": 80.1709, "lat": 12.9941, "name": "Chennai Airport (MAA)"},
     "chennai airport (maa)": {"lng": 80.1709, "lat": 12.9941, "name": "Chennai Airport (MAA)"},
+    "maa": {"lng": 80.1709, "lat": 12.9941, "name": "Chennai Airport (MAA)"},
     "coimbatore airport": {"lng": 77.0434, "lat": 11.0298, "name": "Coimbatore Airport (CJB)"},
+    "coimbatore international airport": {"lng": 77.0434, "lat": 11.0298, "name": "Coimbatore Airport (CJB)"},
     "coimbatore airport (cjb)": {"lng": 77.0434, "lat": 11.0298, "name": "Coimbatore Airport (CJB)"},
+    "cjb": {"lng": 77.0434, "lat": 11.0298, "name": "Coimbatore Airport (CJB)"},
     "trichy airport": {"lng": 78.7097, "lat": 10.7654, "name": "Trichy Airport (TRZ)"},
+    "trichy international airport": {"lng": 78.7097, "lat": 10.7654, "name": "Trichy Airport (TRZ)"},
     "trichy airport (trz)": {"lng": 78.7097, "lat": 10.7654, "name": "Trichy Airport (TRZ)"},
+    "tiruchirappalli airport": {"lng": 78.7097, "lat": 10.7654, "name": "Trichy Airport (TRZ)"},
+    "trz": {"lng": 78.7097, "lat": 10.7654, "name": "Trichy Airport (TRZ)"},
+    "tuticorin airport": {"lng": 78.1417, "lat": 8.7291, "name": "Tuticorin Airport (TCR)"},
+    "tcr": {"lng": 78.1417, "lat": 8.7291, "name": "Tuticorin Airport (TCR)"},
+    "salem airport": {"lng": 78.0875, "lat": 11.7833, "name": "Salem Airport (SXV)"},
+    "sxv": {"lng": 78.0875, "lat": 11.7833, "name": "Salem Airport (SXV)"},
+    "vellore airport": {"lng": 79.125, "lat": 12.885, "name": "Vellore Airport (VLR)"},
+    "vlr": {"lng": 79.125, "lat": 12.885, "name": "Vellore Airport (VLR)"},
 }
 
 def resolve_location(address, lng=None, lat=None, default_city="madurai"):
+    """
+    Resolve a location string to a GeoJSON point.
+    - If coordinates are provided, use them directly.
+    - Otherwise, try to match the address against known city/airport names.
+    - If 'airport' is in the address, try to extract a city name and use that airport.
+    - Fallback to the default_city.
+    """
     if lng is not None and lat is not None:
         try:
             return point(float(lng), float(lat))
         except (ValueError, TypeError):
             pass
+
     if address:
         addr_lower = str(address).strip().lower()
-        for key, city in TN_CITIES.items():
+
+        # Match the most specific name first so "Madurai Airport" is not
+        # captured by the shorter "Madurai" entry.
+        for key in sorted(TN_CITIES, key=len, reverse=True):
+            city = TN_CITIES[key]
             if key in addr_lower:
                 return point(city["lng"], city["lat"])
+
+        # 2. If the address contains "airport", try to extract a city name
+        if "airport" in addr_lower:
+            # Try to find a city name in the address
+            for city_key, city_data in TN_CITIES.items():
+                # Skip airport entries to avoid matching "airport" itself
+                if "airport" in city_key:
+                    continue
+                if city_key in addr_lower:
+                    # Now check if we have an airport entry for that city
+                    airport_key = f"{city_key} airport"
+                    if airport_key in TN_CITIES:
+                        return point(TN_CITIES[airport_key]["lng"], TN_CITIES[airport_key]["lat"])
+                    # Also try with "international airport"
+                    airport_key_intl = f"{city_key} international airport"
+                    if airport_key_intl in TN_CITIES:
+                        return point(TN_CITIES[airport_key_intl]["lng"], TN_CITIES[airport_key_intl]["lat"])
+                    # Fallback: use city center (if no airport defined)
+                    return point(city_data["lng"], city_data["lat"])
+
+    # Fallback to default city
     def_city = TN_CITIES.get(default_city, TN_CITIES["madurai"])
     return point(def_city["lng"], def_city["lat"])
 
@@ -1535,9 +1586,13 @@ def rate_driver(ride_id):
     if not ride_oid:
         return jsonify({"error": "Invalid ride ID"}), 400
 
-    ride = rides.find_one({"_id": ride_oid, "rider_id": request.user["_id"], "status": "completed"})
+    ride = rides.find_one({
+        "_id": ride_oid,
+        "rider_id": request.user["_id"],
+        "status": {"$in": ["pending_completion", "completed"]}
+    })
     if not ride:
-        return jsonify({"error": "Ride not found or not completed"}), 404
+        return jsonify({"error": "Ride not found or not ready for rating"}), 404
 
     if ride.get("rider_rating") is not None:
         return jsonify({"error": "You have already rated this ride"}), 400

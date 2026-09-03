@@ -3470,6 +3470,7 @@
                         // Resolve the airport location
                         var airportName = terminal;
                         var airportCoord = cityCoords[terminal.toLowerCase().trim()] || cityCoords["madurai"];
+                        var townCoord = getTownCoords(town) || cityCoords[airportCityMap[terminal]] || cityCoords["Madurai"];
 
                         // Build pickup and dropoff addresses based on direction
                         var pickupAddr, dropoffAddr;
@@ -3497,6 +3498,10 @@
                                 flight_number: flight,
                                 pickup_address: pickupAddr,
                                 dropoff_address: dropoffAddr,
+                                pickup_lng: airportDirection === "pickup" ? airportCoord.lng : townCoord.lng,
+                                pickup_lat: airportDirection === "pickup" ? airportCoord.lat : townCoord.lat,
+                                dropoff_lng: airportDirection === "pickup" ? townCoord.lng : airportCoord.lng,
+                                dropoff_lat: airportDirection === "pickup" ? townCoord.lat : airportCoord.lat,
                                 scheduled_date: date,
                                 scheduled_time: time,
                                 passenger_phone: phone,

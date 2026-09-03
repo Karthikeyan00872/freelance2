@@ -213,7 +213,7 @@
     <!-- Post-ride star rating modal -->
     <div id="ratingSection" class="modal-backdrop">
         <div class="modal-box">
-            <span class="badge" style="margin-bottom:12px;">Trip Completed</span>
+                    <span class="badge" id="ratingBadge" style="margin-bottom:12px;">Trip Completed</span>
             <h3>How was your ride?</h3>
             <p>Rate your driver to help keep RaniCab reliable.</p>
             <div class="star-rating" id="starContainer" style="justify-content:center; margin-bottom:22px;">
@@ -490,6 +490,7 @@
             var otpSection = document.getElementById('otpSection');
             var resendOtpBtn = document.getElementById('resendOtpBtn');
             var ratingSection = document.getElementById('ratingSection');
+            var ratingBadge = document.getElementById('ratingBadge');
             var starContainer = document.getElementById('starContainer');
             var submitRatingBtn = document.getElementById('submitRatingBtn');
             var skipRatingBtn = document.getElementById('skipRatingBtn');
@@ -803,6 +804,10 @@
                     badgeEl.style.background = "#fff3cd";
                     badgeEl.style.color = "#856404";
                     otpSection.style.display = 'block';
+                    if (ride.rider_rating === undefined || ride.rider_rating === null) {
+                        ratingBadge.textContent = "Rate before finishing";
+                        ratingSection.classList.add('show');
+                    }
                 } else if (ride.status === "completed") {
                     if (ride.driver) {
                         driverNameEl.textContent = ride.driver.name || "Driver";
@@ -819,6 +824,7 @@
                     badgeEl.style.background = "#e2e3e5";
                     badgeEl.style.color = "#383d41";
                     if (ride.rider_rating === undefined || ride.rider_rating === null) {
+                        ratingBadge.textContent = "Trip Completed";
                         ratingSection.classList.add('show');
                     } else {
                         ratingSection.classList.remove('show');

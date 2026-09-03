@@ -351,8 +351,10 @@
                 </div>
 
                 <!-- Secured completion: dynamic UPI QR + driver-entered OTP -->
-                <div id="paymentPanel" class="payment-panel" style="display:none;">
-                    <h2 style="font-size:18px;">Collect Payment</h2>
+                <div id="paymentPanel" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="paymentModalTitle">
+                    <div class="modal-box" style="max-width:500px; text-align:left;">
+                    <button type="button" id="closePaymentModal" aria-label="Close payment dialog" style="float:right; border:0; background:transparent; color:var(--ink-soft); font-size:24px; cursor:pointer;">×</button>
+                    <h2 id="paymentModalTitle" style="font-size:22px;">Collect Payment</h2>
                     <div id="qrBox" class="qr-box">
                         <canvas id="paymentQrCanvas" width="200" height="200"></canvas>
                         <span class="qr-amount" id="qrAmount">₹ 0</span>
@@ -365,19 +367,10 @@
                         <button class="btn" id="driverVerifyOtpBtn" style="background:var(--green); color:#fff; box-shadow:0 6px 0 var(--green-dark);">Finish Trip</button>
                     </div>
                     <button class="btn btn-sm" id="resendOtpBtn" type="button" style="margin-top:10px; background:transparent; color:var(--ink-soft); box-shadow:none; text-decoration:underline; padding:4px 0;">Resend OTP to rider</button>
-                </div>
-
-                <!-- Post-ride: rate the rider -->
-                <div id="rateRiderPanel" class="payment-panel" style="display:none;">
-                    <h2 style="font-size:18px;">Rate this rider</h2>
-                    <div class="star-rating" id="driverStarContainer">
-                        <span data-value="1">☆</span>
-                        <span data-value="2">☆</span>
-                        <span data-value="3">☆</span>
-                        <span data-value="4">☆</span>
-                        <span data-value="5">☆</span>
+                    <div style="display:flex; justify-content:flex-end; margin-top:16px;">
+                        <button class="btn btn-sm" id="closePaymentModalButton" type="button" style="background:var(--ink); color:#fff; box-shadow:0 4px 0 #000;">Close</button>
                     </div>
-                    <button class="btn" id="submitRiderRatingBtn" style="margin-top:10px;">Submit Rating</button>
+                    </div>
                 </div>
 
                 <div style="margin-top:22px; border-top:1px solid var(--border); padding-top:16px;">
@@ -818,27 +811,23 @@
             var driverOtpInput = document.getElementById('driverOtpInput');
             var driverVerifyOtpBtn = document.getElementById('driverVerifyOtpBtn');
             var resendOtpBtn = document.getElementById('resendOtpBtn');
-
-            // Post-ride: rate the rider
-            var rateRiderPanel = document.getElementById('rateRiderPanel');
-            var driverStarContainer = document.getElementById('driverStarContainer');
-            var submitRiderRatingBtn = document.getElementById('submitRiderRatingBtn');
-            var selectedRiderRating = 0;
+            var closePaymentModal = document.getElementById('closePaymentModal');
+            var closePaymentModalButton = document.getElementById('closePaymentModalButton');
 
             var paymentPanelRideId = null;
             function renderPaymentPanel(ride) {
                 if (!ride || ride.status !== 'pending_completion') {
-                    paymentPanel.style.display = 'none';
+                    paymentPanel.classList.remove('show');
                     paymentPanelRideId = null;
                     if (resendCooldownInterval) { clearInterval(resendCooldownInterval); resendCooldownInterval = null; }
                     resendOtpBtn.disabled = false;
                     resendOtpBtn.textContent = 'Resend OTP to rider';
                     return;
                 }
-                paymentPanel.style.display = 'block';
                 if (paymentPanelRideId !== ride.id) {
                     paymentPanelRideId = ride.id;
                     driverOtpInput.value = '';
+                    paymentPanel.classList.add('show');
                 }
                 if (ride.payment_upi_uri) {
                     qrBox.style.display = 'flex';
@@ -874,39 +863,11 @@
                 qrBox.appendChild(link);
             }
 
-            function renderRateRiderPanel(ride) {
-                var alreadyRated = ride && ride.driver_rating !== undefined && ride.driver_rating !== null;
-                if (!ride || ride.status !== 'completed' || alreadyRated) {
-                    rateRiderPanel.style.display = 'none';
-                    selectedRiderRating = 0;
-                    driverStarContainer.querySelectorAll('span').forEach(function (s) { s.textContent = '☆'; });
-                    return;
-                }
-                rateRiderPanel.style.display = 'block';
-            }
-
-            driverStarContainer.addEventListener('click', function (e) {
-                if (e.target.dataset.value) {
-                    selectedRiderRating = parseInt(e.target.dataset.value);
-                    driverStarContainer.querySelectorAll('span').forEach(function (star, idx) {
-                        star.textContent = idx < selectedRiderRating ? '★' : '☆';
-                    });
-                }
-            });
-
-            submitRiderRatingBtn.addEventListener('click', function () {
-                if (selectedRiderRating === 0) { showMessage("Please select a rating.", "error"); return; }
-                if (!currentRide) return;
-                submitRiderRatingBtn.disabled = true;
-                api('/api/rides/' + currentRide.id + '/rate-rider', {
-                    method: 'POST',
-                    body: JSON.stringify({ rating: selectedRiderRating })
-                }).then(function (res) {
-                    showMessage("Thanks for rating your rider!", "success");
-                    displayRide(res.ride);
-                }).catch(function (err) {
-                    showMessage("Could not submit rating: " + err.message, "error");
-                }).finally(function () { submitRiderRatingBtn.disabled = false; });
+            function hidePaymentModal() { paymentPanel.classList.remove('show'); }
+            closePaymentModal.addEventListener('click', hidePaymentModal);
+            closePaymentModalButton.addEventListener('click', hidePaymentModal);
+            paymentPanel.addEventListener('click', function (e) {
+                if (e.target === paymentPanel) hidePaymentModal();
             });
 
             driverVerifyOtpBtn.addEventListener('click', function () {
@@ -918,7 +879,7 @@
                     method: 'POST',
                     body: JSON.stringify({ otp: otp })
                 }).then(function (res) {
-                    showMessage("Trip completed! Please rate your rider.", "success");
+                    showMessage("Trip completed successfully.", "success");
                     displayRide(res.ride);
                     loadPerformance();
                 }).catch(function (err) {
@@ -1117,7 +1078,6 @@
                 updateRideMarkers(ride);
                 updateRouteForRide(ride);
                 renderPaymentPanel(ride);
-                renderRateRiderPanel(ride);
 
                 if (ride && ride.trip_type === 'hourly' && ride.status === 'ongoing' && ride.started_at) {
                     startHourlyTimer(ride);
