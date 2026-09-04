@@ -1459,6 +1459,7 @@ def complete_ride(ride_id):
             "completed_at": now(),
             "payment_upi_uri": payment_upi_uri,
             "payment_amount": fare_amount,
+            "payment_status": "pending",
         }}
     )
 
@@ -1528,7 +1529,7 @@ def complete_ride_verify(ride_id):
 
     rides.update_one(
         {"_id": ride_oid},
-        {"$set": {"status": "completed", "finalized_at": now()},
+        {"$set": {"status": "completed", "finalized_at": now(), "payment_status": "paid"},
          "$unset": {"completion_otp_hash": "", "completion_otp_expires": "", "completion_otp_sent_at": ""}}
     )
 
@@ -1564,7 +1565,7 @@ def complete_ride_verify_driver(ride_id):
 
     rides.update_one(
         {"_id": ride_oid},
-        {"$set": {"status": "completed", "finalized_at": now()},
+        {"$set": {"status": "completed", "finalized_at": now(), "payment_status": "paid"},
          "$unset": {"completion_otp_hash": "", "completion_otp_expires": "", "completion_otp_sent_at": ""}}
     )
 
