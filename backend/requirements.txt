@@ -7,3 +7,4 @@ python-dotenv==1.0.1
 Werkzeug==3.0.3
 google-auth==2.34.0
 requests==2.32.3
+eventlet==0.35.2
