@@ -1323,29 +1323,17 @@
             background: var(--border);
         }
 
-        .btn-google {
+        .google-btn-wrapper {
             display: flex;
-            align-items: center;
             justify-content: center;
-            gap: 10px;
+            align-items: center;
             width: 100%;
-            padding: 12px;
-            border: 1.5px solid var(--border);
-            border-radius: var(--radius-sm);
-            font-weight: 600;
-            font-size: 14.5px;
-            background: #fff;
-            transition: .15s ease;
+            min-height: 44px;
+            margin: 8px 0;
         }
 
-        .btn-google:hover {
-            border-color: var(--ink-soft);
-            background: #fbfbfa;
-        }
-
-        .btn-google svg {
-            width: 18px;
-            height: 18px;
+        .google-btn-wrapper > div {
+            margin: 0 auto !important;
         }
 
         .form-note {
@@ -1521,12 +1509,7 @@
 </head>
 
 <body>
-    <!-- Real Google Sign-In buttons, rendered off-screen and forwarded to from
-         the custom "Continue with Google" / "Sign up with Google" buttons.
-         Kept as direct body children (not inside a display:none modal) so
-         Google's SDK always has a real layout box to render into. -->
-    <div id="googleLoginBtnReal" style="position:absolute; left:-9999px; top:-9999px;" aria-hidden="true"></div>
-    <div id="googleSignupBtnReal" style="position:absolute; left:-9999px; top:-9999px;" aria-hidden="true"></div>
+
 
     <!-- ============ HEADER ============ -->
     <header class="site">
@@ -2234,19 +2217,7 @@
 
                     <div id="riderLoginExtras">
                         <div class="divider">or</div>
-                        <button class="btn-google" type="button" id="googleLoginBtn">
-                            <svg viewBox="0 0 24 24">
-                                <path fill="#4285F4"
-                                    d="M23.5 12.3c0-.8-.1-1.6-.2-2.4H12v4.5h6.5c-.3 1.5-1.2 2.8-2.5 3.6v3h4C22.2 19 23.5 15.9 23.5 12.3z" />
-                                <path fill="#34A853"
-                                    d="M12 24c3.2 0 6-1.1 7.9-2.9l-4-3c-1.1.7-2.4 1.2-3.9 1.2-3 0-5.5-2-6.4-4.7h-4.1v3C3.5 21.3 7.4 24 12 24z" />
-                                <path fill="#FBBC05"
-                                    d="M5.6 14.6c-.2-.7-.4-1.4-.4-2.2s.1-1.5.4-2.2v-3h-4.1C.5 8.9 0 10.4 0 12s.5 3.1 1.5 4.6l4.1-3z" />
-                                <path fill="#EA4335"
-                                    d="M12 4.8c1.7 0 3.3.6 4.5 1.8l3.4-3.4C17.9 1.2 15.2 0 12 0 7.4 0 3.5 2.7 1.5 6.6l4.1 3.2c.9-2.7 3.4-5 6.4-5z" />
-                            </svg>
-                            Continue with Google
-                        </button>
+                        <div id="googleLoginBtnContainer" class="google-btn-wrapper"></div>
                         <p class="form-note">New to RaniCab? <a href="#" data-switch-signup>Create an account</a></p>
                     </div>
                 </div>
@@ -2325,19 +2296,7 @@
                     <h2 class="modal-title" id="signupTitle">Create your account</h2>
                     <p class="modal-sub">Book rides, track drivers and save your favourite routes.</p>
 
-                    <button class="btn-google" type="button" id="googleSignupBtn">
-                        <svg viewBox="0 0 24 24">
-                            <path fill="#4285F4"
-                                d="M23.5 12.3c0-.8-.1-1.6-.2-2.4H12v4.5h6.5c-.3 1.5-1.2 2.8-2.5 3.6v3h4C22.2 19 23.5 15.9 23.5 12.3z" />
-                            <path fill="#34A853"
-                                d="M12 24c3.2 0 6-1.1 7.9-2.9l-4-3c-1.1.7-2.4 1.2-3.9 1.2-3 0-5.5-2-6.4-4.7h-4.1v3C3.5 21.3 7.4 24 12 24z" />
-                            <path fill="#FBBC05"
-                                d="M5.6 14.6c-.2-.7-.4-1.4-.4-2.2s.1-1.5.4-2.2v-3h-4.1C.5 8.9 0 10.4 0 12s.5 3.1 1.5 4.6l4.1-3z" />
-                            <path fill="#EA4335"
-                                d="M12 4.8c1.7 0 3.3.6 4.5 1.8l3.4-3.4C17.9 1.2 15.2 0 12 0 7.4 0 3.5 2.7 1.5 6.6l4.1 3.2c.9-2.7 3.4-5 6.4-5z" />
-                        </svg>
-                        Sign up with Google
-                    </button>
+                    <div id="googleSignupBtnContainer" class="google-btn-wrapper"></div>
 
                     <div class="divider">or sign up with email</div>
 
@@ -2505,7 +2464,7 @@
 
             function finishGoogleAuth(phone, signupMode) {
                 if (!googleCredential) {
-                    showMessage("Google credential missing. Please try Continue with Google again.", "error");
+                    showMessage("Google credential missing. Please sign in with Google again.", "error");
                     return;
                 }
                 return api("/api/auth/google", {
@@ -2514,68 +2473,116 @@
                 }).then(function (data) {
                     saveSession(data.user);
                     closeAllModals();
+                    updateAuthNav();
                     if (data.user.role === "driver") {
                         window.location.href = "/frontend/driver_dashboard.html";
+                    } else {
+                        showMessage("Welcome, " + (data.user.name || "Rider") + "!", "success");
                     }
                 }).catch(function (error) {
                     showMessage(error.message, "error");
                 });
             }
 
-            /* ---------- CROSS-BROWSER GOOGLE SIGN-IN ---------- */
-            var pendingGoogleSignup = false;
-            var googleButtonsReady = false;
+            /* ---------- GOOGLE IDENTITY SERVICES INTEGRATION ---------- */
+            var cachedGoogleClientId = "";
+            var googleInitialized = false;
+
+            function renderGoogleButtons() {
+                if (!window.google || !window.google.accounts || !window.google.accounts.id) return;
+                
+                var loginContainer = document.getElementById("googleLoginBtnContainer");
+                var signupContainer = document.getElementById("googleSignupBtnContainer");
+
+                if (loginContainer && !loginContainer.querySelector("iframe")) {
+                    loginContainer.innerHTML = "";
+                    window.google.accounts.id.renderButton(loginContainer, {
+                        type: "standard",
+                        shape: "rectangular",
+                        theme: "outline",
+                        text: "continue_with",
+                        size: "large",
+                        width: 320,
+                        logo_alignment: "left"
+                    });
+                }
+
+                if (signupContainer && !signupContainer.querySelector("iframe")) {
+                    signupContainer.innerHTML = "";
+                    window.google.accounts.id.renderButton(signupContainer, {
+                        type: "standard",
+                        shape: "rectangular",
+                        theme: "outline",
+                        text: "signup_with",
+                        size: "large",
+                        width: 320,
+                        logo_alignment: "left"
+                    });
+                }
+            }
 
             function initGoogleButtons() {
-                if (googleButtonsReady) return;
+                if (cachedGoogleClientId) {
+                    if (!googleInitialized && window.google && window.google.accounts && window.google.accounts.id) {
+                        window.google.accounts.id.initialize({
+                            client_id: cachedGoogleClientId,
+                            callback: function (response) {
+                                googleCredential = response.credential;
+                                var signupModal = document.getElementById("signupBackdrop");
+                                var isSignup = signupModal && signupModal.classList.contains("open");
+                                if (isSignup) {
+                                    finishGoogleAuth("", true);
+                                } else {
+                                    showLoginPanel("googlephone");
+                                }
+                            },
+                            auto_select: false,
+                            cancel_on_tap_outside: true
+                        });
+                        googleInitialized = true;
+                    }
+                    renderGoogleButtons();
+                    return;
+                }
+
                 api("/api/config").then(function (cfg) {
-                    if (!cfg.google_client_id) return;
+                    if (!cfg.google_client_id) {
+                        console.warn("Google Client ID is not configured on server.");
+                        return;
+                    }
+                    cachedGoogleClientId = cfg.google_client_id;
                     if (!window.google || !window.google.accounts || !window.google.accounts.id) {
                         setTimeout(initGoogleButtons, 300);
                         return;
                     }
                     window.google.accounts.id.initialize({
-                        client_id: cfg.google_client_id,
+                        client_id: cachedGoogleClientId,
                         callback: function (response) {
                             googleCredential = response.credential;
-                            if (pendingGoogleSignup) finishGoogleAuth("", true);
-                            else showLoginPanel("googlephone");
-                        }
+                            var signupModal = document.getElementById("signupBackdrop");
+                            var isSignup = signupModal && signupModal.classList.contains("open");
+                            if (isSignup) {
+                                finishGoogleAuth("", true);
+                            } else {
+                                showLoginPanel("googlephone");
+                            }
+                        },
+                        auto_select: false,
+                        cancel_on_tap_outside: true
                     });
-                    var loginContainer = document.getElementById("googleLoginBtnReal");
-                    var signupContainer = document.getElementById("googleSignupBtnReal");
-                    if (loginContainer) {
-                        window.google.accounts.id.renderButton(loginContainer, { theme: "outline", size: "large", width: 320 });
-                    }
-                    if (signupContainer) {
-                        window.google.accounts.id.renderButton(signupContainer, { theme: "outline", size: "large", width: 320 });
-                    }
-                    googleButtonsReady = true;
+                    googleInitialized = true;
+                    renderGoogleButtons();
                 }).catch(function () {
-                    setTimeout(initGoogleButtons, 500);
+                    setTimeout(initGoogleButtons, 1000);
                 });
             }
 
-            function clickRenderedGoogleButton(containerId) {
-                var container = document.getElementById(containerId);
-                var innerButton = container && container.querySelector('div[role="button"]');
-                if (innerButton) {
-                    innerButton.click();
-                    return true;
-                }
-                return false;
+            // Eagerly initialize Google Sign-in
+            if (document.readyState === "loading") {
+                document.addEventListener("DOMContentLoaded", initGoogleButtons);
+            } else {
+                initGoogleButtons();
             }
-
-            function startGoogle(signupMode) {
-                pendingGoogleSignup = !!signupMode;
-                var containerId = signupMode ? "googleSignupBtnReal" : "googleLoginBtnReal";
-                if (!googleButtonsReady || !clickRenderedGoogleButton(containerId)) {
-                    initGoogleButtons();
-                    showMessage("Google Sign-In is still loading. Please try again in a moment.", "error");
-                }
-            }
-
-            initGoogleButtons();
 
             /* ---------- ROUTING ---------- */
             var routes = ["home", "oneway", "hourly", "airport"];
@@ -3082,6 +3089,7 @@
 
             function openModal(backdrop) {
                 backdrop.classList.add("open");
+                initGoogleButtons();
                 var firstInput = backdrop.querySelector("input:not([type=hidden])");
                 if (firstInput) setTimeout(function () { firstInput.focus(); }, 60);
             }
@@ -3306,8 +3314,6 @@
             }
 
             /* ---------- GOOGLE AUTH BUTTONS ---------- */
-            var googleLoginBtn = document.getElementById("googleLoginBtn");
-            if (googleLoginBtn) googleLoginBtn.addEventListener("click", function () { startGoogle(false); });
             var googlePhoneContinue = document.getElementById("googlePhoneContinue");
             if (googlePhoneContinue) {
                 googlePhoneContinue.addEventListener("click", function () {
@@ -3316,8 +3322,6 @@
                     finishGoogleAuth(phone, false);
                 });
             }
-            var googleSignupBtn = document.getElementById("googleSignupBtn");
-            if (googleSignupBtn) googleSignupBtn.addEventListener("click", function () { startGoogle(true); });
 
             /* ---------- SIGNUP SUBMIT ---------- */
             var signupForm = document.getElementById("signupForm");

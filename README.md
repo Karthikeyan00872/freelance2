@@ -117,26 +117,56 @@ Then open `http://127.0.0.1:5500/frontend/index.html` in your browser.
 
 ## Deploy on Render
 
-This repository includes `render.yaml`, which deploys the frontend and Flask API as one Render Web Service.
+This repository includes `render.yaml`, which deploys the frontend and Flask API as one unified Render Web Service.
 
-1. Push the repository to GitHub and create a new **Blueprint** in Render using that repository.
-2. Create a MongoDB database with MongoDB Atlas and a Redis instance with a hosted Redis provider. Render does not provide MongoDB or Redis as built-in services.
-3. In the Render service environment, set the variables marked `sync: false` in `render.yaml`, especially `MONGODB_URI`, `REDIS_URL`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`, and the Google/SMTP values you use.
-4. Set `CORS_ORIGINS` to the deployed service URL, for example `https://ranicab.onrender.com` (without a trailing slash).
-5. After the first deploy, set `GOOGLE_REDIRECT_URI` to `https://YOUR-SERVICE.onrender.com/api/auth/google/callback` and add that exact URL to the Google OAuth client configuration.
+1. Push the repository to GitHub and create a new **Blueprint** or **Web Service** in Render.
+2. Set up a MongoDB Atlas cluster and a hosted Redis instance (e.g. Upstash or Redis Cloud).
+3. In the Render service dashboard under **Environment**, configure the required variables:
+   - `MONGODB_URI`: Your MongoDB connection string.
+   - `REDIS_URL`: Your Redis connection string.
+   - `GOOGLE_CLIENT_ID`: Your Google OAuth 2.0 Web Client ID.
+   - `SECRET_KEY`: A long random secret key.
+   - `SESSION_COOKIE_SECURE`: `true`
+   - `ADMIN_USERNAME` & `ADMIN_PASSWORD`: Admin login credentials.
+   - `SENDER_EMAIL` & `SENDER_APP_PASSWORD`: SMTP credentials for OTP emails.
+4. **Google Cloud Console Configuration for Render**:
+   - Go to [Google Cloud Console > Credentials](https://console.cloud.google.com/apis/credentials).
+   - Click on your **OAuth 2.0 Web Client ID**.
+   - Under **Authorized JavaScript origins**, add your Render domain:
+     `https://YOUR-SERVICE.onrender.com` (e.g. `https://ranicab.onrender.com`).
+     *(Important: No trailing slash `/` and must start with `https://`)*.
+   - Under **OAuth consent screen**:
+     - If the status is **Testing**: Add testing Google emails under **Test users > + ADD USERS**.
+     - OR click **PUBLISH APP** to make the app available to all Google users.
 
-The Render service uses the `PORT` value supplied by Render, serves the app at `/`, and exposes the health check at `/api/health`.
+---
 
-## Share through VS Code Port Forwarding
+## Share through VS Code Port Forwarding (Dev Tunnels)
 
-For temporary public testing from your own machine:
+To test the application publicly using VS Code Dev Tunnels without deploying to the cloud:
 
-1. Start MongoDB and Redis locally, then run `./run.ps1` from the project root.
-2. Open the **Ports** panel in VS Code, forward port `5000`, and set its visibility to **Public**. Do not forward only port `5500`; the Flask service now serves the frontend and API together.
-3. Open the generated HTTPS forwarding URL. The app uses that same origin for API requests and Socket.IO.
-4. For Google Sign-In during this test, set `GOOGLE_REDIRECT_URI` and the Google OAuth authorized redirect URI to `<forwarded-url>/api/auth/google/callback`.
+1. Start MongoDB and Redis locally, then run `./run.ps1` from the project root (or run `python backend/app.py`).
+2. Open the **Ports** panel in VS Code (Ctrl + ` or View > Terminal > Ports).
+3. Forward port **`5000`** (the Flask service serves both backend API and frontend).
+4. Right-click port `5000` in the Ports table and set **Port Visibility** to **Public** *(required for third-party OAuth callbacks and iframes)*.
+5. Copy the generated **Forwarded Address** (e.g., `https://57g3brzl-5000.inc1.devtunnels.ms`).
+6. **Google Cloud Console Configuration for Dev Tunnels**:
+   - Open your Web Client ID in Google Cloud Console.
+   - Under **Authorized JavaScript origins**, add your dev tunnel URL:
+     `https://57g3brzl-5000.inc1.devtunnels.ms`
+   - Save changes.
+7. Open the forwarded address in your browser: `https://57g3brzl-5000.inc1.devtunnels.ms`
 
-Port forwarding is intended for development and demonstrations. The forwarded URL stops working when the local process or tunnel stops.
+---
+
+## Troubleshooting Google Sign-In 'Authorisation Error'
+
+| Error Symptom | Cause | Solution |
+|---|---|---|
+| **Error 400: origin_mismatch** | The current URL is not in Authorized JavaScript origins. | Add the exact URL (e.g. `https://xxx.onrender.com` or `https://xxx.devtunnels.ms`) to Google Cloud Console > Credentials > Authorized JavaScript origins (no trailing `/`). |
+| **Error 403: access_denied / App not verified** | App is in "Testing" mode and current Google account is not added as a Test User. | In Google Cloud Console > OAuth consent screen, either add your email under **Test users** or click **Publish App**. |
+| **Google credential missing / prompt blocked** | Browser popup blocker or off-screen button. | The app now renders official Google Identity Services buttons directly in the login and signup modals. Ensure popups are allowed. |
+| **Google sign-in could not be verified (500/401)** | `GOOGLE_CLIENT_ID` in `.env` / Render environment does not match Google Console client ID. | Verify `GOOGLE_CLIENT_ID` matches your OAuth 2.0 Web Client ID in Google Cloud Console. |
 
 ## API Overview
 

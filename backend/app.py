@@ -18,6 +18,7 @@ from pymongo import MongoClient, GEOSPHERE
 from pymongo.errors import DuplicateKeyError
 from redis import Redis
 from werkzeug.security import check_password_hash, generate_password_hash
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FRONTEND_DIR = os.path.join(PROJECT_DIR, "frontend")
@@ -33,26 +34,33 @@ IMAGE_TYPES = {"profile", "licence", "rc_book", "insurance", "vehicle"}
 load_dotenv(os.path.join(PROJECT_DIR, ".env"))
 
 app = Flask(__name__)
+# Enable ProxyFix for Render.com, reverse proxies, and VS Code Dev Tunnels
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1)
+
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", secrets.token_hex(32))
-app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
-app.config["SESSION_COOKIE_SECURE"] = os.getenv("SESSION_COOKIE_SECURE", "false").lower() in {"1", "true", "yes"}
+app.config["SESSION_COOKIE_SAMESITE"] = os.getenv("SESSION_COOKIE_SAMESITE", "Lax")
+is_prod = bool(os.getenv("RENDER") or os.getenv("SESSION_COOKIE_SECURE", "false").lower() in {"1", "true", "yes"})
+app.config["SESSION_COOKIE_SECURE"] = is_prod
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 
-cors_origins = [
-    "http://localhost:5500",
-    "http://127.0.0.1:5500",
-    "http://localhost:5000",
-    "http://127.0.0.1:5000",
+# Dynamic CORS origins supporting localhost, devtunnels, render, and GitHub Codespaces
+cors_origin_patterns = [
+    re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$"),
+    re.compile(r"^https://.*\.devtunnels\.ms(:\d+)?$"),
+    re.compile(r"^https://.*\.onrender\.com$"),
+    re.compile(r"^https://.*\.github\.dev$"),
+    re.compile(r"^https://.*\.app\.github\.dev$"),
     "https://visualstudio.com",
 ]
+
 env_origins = os.getenv("CORS_ORIGINS")
 if env_origins:
     for origin in env_origins.split(","):
         origin = origin.strip()
-        if origin and origin not in cors_origins:
-            cors_origins.append(origin)
+        if origin and origin not in cors_origin_patterns:
+            cors_origin_patterns.append(origin)
 
-CORS(app, supports_credentials=True, origins=cors_origins or "*")
+CORS(app, supports_credentials=True, origins=cors_origin_patterns)
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode=os.getenv("SOCKETIO_ASYNC_MODE", "threading"))
 
 mongo = MongoClient(os.getenv("MONGODB_URI", "mongodb://localhost:27017/rani_cab"), serverSelectionTimeoutMS=3000)
@@ -554,13 +562,17 @@ def google_auth():
     token = data.get("credential")
     if not token:
         return jsonify({"error": "Missing Google credential"}), 400
+    google_client_id = (os.getenv("GOOGLE_CLIENT_ID") or "").strip().strip('"').strip("'")
+    if not google_client_id:
+        app.logger.error("GOOGLE_CLIENT_ID is not configured in environment variables.")
+        return jsonify({"error": "Google Client ID is not configured on the server"}), 500
     try:
         from google.auth.transport import requests as google_requests
         from google.oauth2 import id_token
-        profile = id_token.verify_oauth2_token(token, google_requests.Request(), os.getenv("GOOGLE_CLIENT_ID"))
+        profile = id_token.verify_oauth2_token(token, google_requests.Request(), google_client_id)
     except Exception as exc:
-        app.logger.warning("Google sign-in failed: %s", exc)
-        return jsonify({"error": "Google sign-in could not be verified"}), 401
+        app.logger.warning("Google sign-in verification failed: %s", exc)
+        return jsonify({"error": f"Google sign-in could not be verified: {str(exc)}"}), 401
     if not profile.get("email_verified"):
         return jsonify({"error": "Google email is not verified"}), 401
     user = create_or_update_google_user(profile, data.get("phone", ""))
