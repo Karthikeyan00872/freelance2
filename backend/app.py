@@ -36,13 +36,21 @@ load_dotenv(os.path.join(PROJECT_DIR, ".env"))
 app = Flask(__name__)
 # Enable ProxyFix for Render.com, reverse proxies, and VS Code Dev Tunnels
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1)
-
+@app.after_request
+def add_cache_headers(response):
+    if request.path.startswith("/frontend/") or request.path.startswith("/src/") or request.path.endswith(".html"):
+        response.headers["Cache-Control"] = "public, max-age=86400"
+    return response
+'''
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", secrets.token_hex(32))
 app.config["SESSION_COOKIE_SAMESITE"] = os.getenv("SESSION_COOKIE_SAMESITE", "Lax")
 is_prod = bool(os.getenv("RENDER") or os.getenv("SESSION_COOKIE_SECURE", "false").lower() in {"1", "true", "yes"})
 app.config["SESSION_COOKIE_SECURE"] = is_prod
 app.config["SESSION_COOKIE_HTTPONLY"] = True
-
+'''
+app.config["SESSION_COOKIE_SAMESITE"] = "None"
+app.config["SESSION_COOKIE_SECURE"] = True
+app.config["SESSION_COOKIE_HTTPONLY"] = True
 # Dynamic CORS origins supporting localhost, devtunnels, render, and GitHub Codespaces
 cors_origin_patterns = [
     re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$"),
@@ -63,7 +71,9 @@ if env_origins:
 CORS(app, supports_credentials=True, origins=cors_origin_patterns)
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode=os.getenv("SOCKETIO_ASYNC_MODE", "threading"))
 
-mongo = MongoClient(os.getenv("MONGODB_URI", "mongodb://localhost:27017/rani_cab"), serverSelectionTimeoutMS=3000)
+mongo = MongoClient(os.getenv("MONGODB_URI", "mongodb://localhost:27017/rani_cab"), serverSelectionTimeoutMS=30000, connectTimeoutMS=15000,
+    socketTimeoutMS=15000,
+    maxPoolSize=10)
 db = mongo.get_default_database()
 
 # Redis with in-memory thread-safe fallback
