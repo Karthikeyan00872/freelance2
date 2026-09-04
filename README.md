@@ -115,6 +115,29 @@ python -m http.server 5500
 
 Then open `http://127.0.0.1:5500/frontend/index.html` in your browser.
 
+## Deploy on Render
+
+This repository includes `render.yaml`, which deploys the frontend and Flask API as one Render Web Service.
+
+1. Push the repository to GitHub and create a new **Blueprint** in Render using that repository.
+2. Create a MongoDB database with MongoDB Atlas and a Redis instance with a hosted Redis provider. Render does not provide MongoDB or Redis as built-in services.
+3. In the Render service environment, set the variables marked `sync: false` in `render.yaml`, especially `MONGODB_URI`, `REDIS_URL`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`, and the Google/SMTP values you use.
+4. Set `CORS_ORIGINS` to the deployed service URL, for example `https://ranicab.onrender.com` (without a trailing slash).
+5. After the first deploy, set `GOOGLE_REDIRECT_URI` to `https://YOUR-SERVICE.onrender.com/api/auth/google/callback` and add that exact URL to the Google OAuth client configuration.
+
+The Render service uses the `PORT` value supplied by Render, serves the app at `/`, and exposes the health check at `/api/health`.
+
+## Share through VS Code Port Forwarding
+
+For temporary public testing from your own machine:
+
+1. Start MongoDB and Redis locally, then run `./run.ps1` from the project root.
+2. Open the **Ports** panel in VS Code, forward port `5000`, and set its visibility to **Public**. Do not forward only port `5500`; the Flask service now serves the frontend and API together.
+3. Open the generated HTTPS forwarding URL. The app uses that same origin for API requests and Socket.IO.
+4. For Google Sign-In during this test, set `GOOGLE_REDIRECT_URI` and the Google OAuth authorized redirect URI to `<forwarded-url>/api/auth/google/callback`.
+
+Port forwarding is intended for development and demonstrations. The forwarded URL stops working when the local process or tunnel stops.
+
 ## API Overview
 
 | Method | Endpoint | Description |

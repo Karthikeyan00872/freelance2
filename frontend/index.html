@@ -2414,7 +2414,7 @@
                 window.setTimeout(function () { if (toast.isConnected) toast.remove(); }, 4500);
             }
 
-            var API_BASE = window.RANICAB_API_BASE || (window.location.port === "5000" ? window.location.origin : "http://localhost:5000");
+            var API_BASE = window.RANICAB_API_BASE || window.location.origin;
             var googleCredential = null;
 
             function api(path, options) {

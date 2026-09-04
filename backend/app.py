@@ -35,7 +35,7 @@ load_dotenv(os.path.join(PROJECT_DIR, ".env"))
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", secrets.token_hex(32))
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
-app.config["SESSION_COOKIE_SECURE"] = False
+app.config["SESSION_COOKIE_SECURE"] = os.getenv("SESSION_COOKIE_SECURE", "false").lower() in {"1", "true", "yes"}
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 
 cors_origins = [

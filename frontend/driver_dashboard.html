@@ -465,8 +465,7 @@
             try { session = JSON.parse(localStorage.getItem('ranicab-session') || 'null'); } catch (e) {}
             if (!session || session.role !== 'driver') { window.location.href = '/'; return; }
 
-            var apiBase = window.RANICAB_API_BASE || (window.location.port === '5000' ? window.location.origin :
-                'http://localhost:5000');
+            var apiBase = window.RANICAB_API_BASE || window.location.origin;
             var isOnline = false,
                 currentRide = null,
                 assignedRiderPhone = "",

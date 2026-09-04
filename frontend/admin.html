@@ -514,8 +514,7 @@ async function initApp() {
 }
 
 function connectSocket() {
-  const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  socket = io(protocol + '://' + location.hostname + ':' + location.port, {transports:['websocket','polling']});
+  socket = io(window.RANICAB_API_BASE || window.location.origin, {transports:['websocket','polling'], withCredentials:true});
   socket.on('driver_status_update', (data) => {
     loadAnalytics();
     showToast(`Driver ${data.is_online ? 'went online' : 'went offline'}`);
