@@ -1,11 +1,10 @@
 Flask==3.0.3
 Flask-Cors==4.0.1
 Flask-SocketIO==5.3.6
+Flask-Compress==1.17
 pymongo==4.8.0
 redis==5.0.8
 python-dotenv==1.0.1
 Werkzeug==3.0.3
 google-auth==2.34.0
 requests==2.32.3
-eventlet==0.35.2
-gunicorn==23.0.0

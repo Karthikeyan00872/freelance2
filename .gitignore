@@ -1,4 +1,3 @@
+/app/__pycache__/*
 .env
-uploads/
-backend/__pycache__/
-*.pyc   
+/uploads/*

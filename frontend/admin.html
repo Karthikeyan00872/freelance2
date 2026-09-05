@@ -475,7 +475,7 @@ async function adminLogin() {
   const username = document.getElementById('adminUser').value;
   const password = document.getElementById('adminPass').value;
   try {
-    const res = await fetch('/api/admin/login', {
+    const res = await fetch('/api/auth/admin/login', {
       method: 'POST', headers: {'Content-Type':'application/json'},
       credentials: 'include',
       body: JSON.stringify({username, password})
@@ -491,13 +491,13 @@ async function adminLogin() {
 }
 
 async function adminLogout() {
-  await fetch('/api/admin/logout', {method:'POST', credentials:'include'});
+  await fetch('/api/auth/admin/logout', {method:'POST', credentials:'include'});
   location.reload();
 }
 
 async function checkAdminSession() {
   try {
-    const res = await fetch('/api/admin/me', {credentials:'include'});
+    const res = await fetch('/api/auth/admin/me', {credentials:'include'});
     if (res.ok) {
       document.getElementById('loginScreen').style.display = 'none';
       document.getElementById('dashboard').style.display = 'block';

@@ -1505,6 +1505,36 @@
             border-bottom: 1.5px solid var(--border);
         }
     </style>
+    <script>
+        // Universal image path fallback for any server/local environment
+        document.addEventListener('error', function (e) {
+            if (e.target && e.target.tagName === 'IMG') {
+                const img = e.target;
+                const rawSrc = img.getAttribute('src');
+                if (!rawSrc || rawSrc.startsWith('data:') || img.dataset.retried) return;
+                img.dataset.retried = '1';
+                const filename = rawSrc.split('/').pop().split('?')[0];
+                const attempts = [
+                    'src/' + filename,
+                    '/src/' + filename,
+                    '../src/' + filename,
+                    '/frontend/src/' + filename,
+                    'frontend/src/' + filename
+                ];
+                let i = 0;
+                function tryNext() {
+                    if (i >= attempts.length) return;
+                    const nextSrc = attempts[i++];
+                    if (nextSrc === rawSrc) { tryNext(); return; }
+                    const probe = new Image();
+                    probe.onload = function () { img.src = nextSrc; };
+                    probe.onerror = tryNext;
+                    probe.src = nextSrc;
+                }
+                tryNext();
+            }
+        }, true);
+    </script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 
@@ -1516,7 +1546,7 @@
         <div class="nav-wrap">
             <a href="#home" class="logo" data-route="home">
                 <span class="mark">
-                    <img src="../src/logo.png" alt="RaniCab logo">
+                    <img src="src/logo.png" alt="RaniCab logo">
                 </span>
                 Rani<span class="go">Cab</span>
             </a>
@@ -1592,7 +1622,7 @@
                         </div>
                     </div>
 
-                    <img class="home-visual" src="../src/hm.png" alt="RaniCab ride across Tamil Nadu">
+                        <img class="home-visual" src="src/hm.png" alt="RaniCab ride across Tamil Nadu">
                 </div>
             </div>
 
@@ -1661,19 +1691,19 @@
                         <h2>A cab for every trip</h2>
                     </div>
                     <div class="cab-scroll reveal">
-                        <div class="cab-card"><img class="cab-image" src="../src/mini.png" alt="Mini cab">
+                        <div class="cab-card"><img class="cab-image" src="src/mini.png" alt="Mini cab">
                             <h4>Mini</h4>
                             <p>Economy, 4-seater</p>
                         </div>
-                        <div class="cab-card"><img class="cab-image" src="../src/mini4seater.png" alt="Sedan cab">
+                        <div class="cab-card"><img class="cab-image" src="src/mini4seater.png" alt="Sedan cab">
                             <h4>Sedan</h4>
                             <p>Comfort, 4-seater</p>
                         </div>
-                        <div class="cab-card"><img class="cab-image" src="../src/suv.png" alt="SUV cab">
+                        <div class="cab-card"><img class="cab-image" src="src/suv.png" alt="SUV cab">
                             <h4>SUV</h4>
                             <p>Spacious, 6-seater</p>
                         </div>
-                        <div class="cab-card"><img class="cab-image" src="../src/12st.png" alt="Traveller cab">
+                        <div class="cab-card"><img class="cab-image" src="src/12st.png" alt="Traveller cab">
                             <h4>Traveller</h4>
                             <p>Group, 12-seater</p>
                         </div>
@@ -1724,7 +1754,7 @@
 
         <!-- ============ ONEWAY TRIP PAGE ============ -->
         <section class="page" data-page="oneway">
-            <!--<img class="route-banner" src="cm.png" alt="VandiGo city ride">-->
+            <!--<img class="route-banner" src="src/cm.png" alt="VandiGo city ride">-->
             <div class="hero">
                 <div class="container hero-grid">
                     <div>
@@ -1828,7 +1858,7 @@
 
         <!-- ============ HOURLY RENTAL PAGE ============ -->
         <section class="page" data-page="hourly">
-            <!--<img class="route-banner" src="cm.png" alt="VandiGo city ride">-->
+            <!--<img class="route-banner" src="src/cm.png" alt="VandiGo city ride">-->
             <div class="hero">
                 <div class="container hero-grid">
                     <div>
@@ -2083,10 +2113,10 @@
             <div class="footer-grid">
                 <div>
                     <div class="footer-logo">
-                        <span class="mark"><img src="../src/logo.png" alt=""></span>
+                        <span class="mark"><img src="src/logo.png" alt=""></span>
                         Rani<span class="go">Cab</span>
                     </div>
-                    <img src="../src/ft.png" alt="RaniCab service coverage" class="footer-image">
+                    <img src="src/ft.png" alt="RaniCab service coverage" class="footer-image">
                     <p class="footer-desc">Reliable, upfront-priced cab booking across Tamil Nadu — oneway trips, hourly
                         rentals and airport transfers.</p>
                     <div class="social-row">
@@ -2545,7 +2575,7 @@
                     return;
                 }
 
-                api("/api/config").then(function (cfg) {
+                api("/api/auth/config").then(function (cfg) {
                     if (!cfg.google_client_id) {
                         console.warn("Google Client ID is not configured on server.");
                         return;
