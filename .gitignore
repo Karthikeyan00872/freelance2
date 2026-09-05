@@ -1,4 +1,0 @@
-.env
-uploads/
-backend/__pycache__/
-*.pyc   
