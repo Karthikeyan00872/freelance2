@@ -1332,7 +1332,7 @@
             margin: 8px 0;
         }
 
-        .google-btn-wrapper > div {
+        .google-btn-wrapper>div {
             margin: 0 auto !important;
         }
 
@@ -1540,7 +1540,7 @@
         <div class="nav-wrap">
             <a href="#home" class="logo" data-route="home">
                 <span class="mark">
-                    <img src="/src/logo.png" alt="RaniCab logo">
+                    <img src="../src/logo.png" alt="RaniCab logo">
                 </span>
                 Rani<span class="go">Cab</span>
             </a>
@@ -1549,9 +1549,8 @@
                 <a href="#oneway" data-route="oneway" data-public-menu>Oneway Trip</a>
                 <a href="#hourly" data-route="hourly" data-public-menu>Hourly Rental</a>
                 <a href="#airport" data-route="airport" data-public-menu>Airport Transfer</a>
-                <a href="/frontend/rider_dashboard.html" data-auth-dashboard data-rider-only hidden>Rider Dashboard</a>
-                <a href="/frontend/driver_dashboard.html" data-auth-dashboard data-driver-only hidden>Driver
-                    Dashboard</a>
+                <a href="/rider_dashboard" data-auth-dashboard data-rider-only hidden>Rider Dashboard</a>
+                <a href="/driver_dashboard" data-auth-dashboard data-driver-only hidden>Driver Dashboard</a>
             </nav>
             <div class="nav-actions">
                 <button class="btn btn-ghost btn-sm" data-open-login data-auth-guest>Log in</button>
@@ -1571,8 +1570,8 @@
             <a href="#oneway" data-route="oneway" data-public-menu>Oneway Trip</a>
             <a href="#hourly" data-route="hourly" data-public-menu>Hourly Rental</a>
             <a href="#airport" data-route="airport" data-public-menu>Airport Transfer</a>
-            <a href="/frontend/rider_dashboard.html" data-auth-dashboard data-rider-only hidden>Rider Dashboard</a>
-            <a href="/frontend/driver_dashboard.html" data-auth-dashboard data-driver-only hidden>Driver Dashboard</a>
+            <a href="/rider_dashboard" data-auth-dashboard data-rider-only hidden>Rider Dashboard</a>
+            <a href="/driver_dashboard" data-auth-dashboard data-driver-only hidden>Driver Dashboard</a>
             <div class="mob-actions">
                 <button class="btn btn-ghost btn-sm" style="flex:1" data-open-login data-auth-guest>Log in</button>
                 <button class="btn btn-primary btn-sm" style="flex:1" data-open-signup data-auth-guest>Sign up</button>
@@ -1616,7 +1615,7 @@
                         </div>
                     </div>
 
-                        <img class="home-visual" src="/src/hm.png" alt="RaniCab ride across Tamil Nadu">
+                    <img class="home-visual" src="../src/hm.png" alt="RaniCab ride across Tamil Nadu">
                 </div>
             </div>
 
@@ -1685,19 +1684,19 @@
                         <h2>A cab for every trip</h2>
                     </div>
                     <div class="cab-scroll reveal">
-                        <div class="cab-card"><img class="cab-image" src="/src/mini.png" alt="Mini cab">
+                        <div class="cab-card"><img class="cab-image" src="../src/mini.png" alt="Mini cab">
                             <h4>Mini</h4>
                             <p>Economy, 4-seater</p>
                         </div>
-                        <div class="cab-card"><img class="cab-image" src="/src/mini4seater.png" alt="Sedan cab">
+                        <div class="cab-card"><img class="cab-image" src="../src/mini4seater.png" alt="Sedan cab">
                             <h4>Sedan</h4>
                             <p>Comfort, 4-seater</p>
                         </div>
-                        <div class="cab-card"><img class="cab-image" src="/src/suv.png" alt="SUV cab">
+                        <div class="cab-card"><img class="cab-image" src="../src/suv.png" alt="SUV cab">
                             <h4>SUV</h4>
                             <p>Spacious, 6-seater</p>
                         </div>
-                        <div class="cab-card"><img class="cab-image" src="/src/12st.png" alt="Traveller cab">
+                        <div class="cab-card"><img class="cab-image" src="../src/12st.png" alt="Traveller cab">
                             <h4>Traveller</h4>
                             <p>Group, 12-seater</p>
                         </div>
@@ -2107,10 +2106,10 @@
             <div class="footer-grid">
                 <div>
                     <div class="footer-logo">
-                        <span class="mark"><img src="/src/logo.png" alt=""></span>
+                        <span class="mark"><img src="../src/logo.png" alt=""></span>
                         Rani<span class="go">Cab</span>
                     </div>
-                    <img src="/src/ft.png" alt="RaniCab service coverage" class="footer-image">
+                    <img src="../src/ft.png" alt="RaniCab service coverage" class="footer-image">
                     <p class="footer-desc">Reliable, upfront-priced cab booking across Tamil Nadu — oneway trips, hourly
                         rentals and airport transfers.</p>
                     <div class="social-row">
@@ -2514,7 +2513,7 @@
 
             function renderGoogleButtons() {
                 if (!window.google || !window.google.accounts || !window.google.accounts.id) return;
-                
+
                 var loginContainer = document.getElementById("googleLoginBtnContainer");
                 var signupContainer = document.getElementById("googleSignupBtnContainer");
 
