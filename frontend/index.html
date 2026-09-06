@@ -1157,6 +1157,16 @@
             margin-bottom: 16px;
         }
 
+        .footer-image {
+            display: block;
+            width: 100%;
+            height: auto;
+            margin-top: -25px;
+            margin-bottom: 10px;
+            border-radius: 10px; 
+            overflow: hidden;                      
+        }
+
         .social-row {
             display: flex;
             gap: 10px;
@@ -1213,6 +1223,10 @@
             overflow-y: auto;
             position: relative;
             box-shadow: 0 30px 60px -20px rgba(0, 0, 0, 0.35);
+        }
+
+        .modal::-webkit-scrollbar {
+            display: none;
         }
 
         .modal-head {
@@ -1487,6 +1501,13 @@
             }
         }
 
+        @media (min-width: 768px) {
+            .footer-image {
+                width: 100%;
+                /* Prevents the map from occupying the full window width */
+            }
+        }
+
         .home-visual {
             width: 100%;
             max-height: 390px;
@@ -1572,12 +1593,12 @@
             <a href="#airport" data-route="airport" data-public-menu>Airport Transfer</a>
             <a href="/rider_dashboard" data-auth-dashboard data-rider-only hidden>Rider Dashboard</a>
             <a href="/driver_dashboard" data-auth-dashboard data-driver-only hidden>Driver Dashboard</a>
-            <div class="mob-actions">
+            <!--<div class="mob-actions">
                 <button class="btn btn-ghost btn-sm" style="flex:1" data-open-login data-auth-guest>Log in</button>
                 <button class="btn btn-primary btn-sm" style="flex:1" data-open-signup data-auth-guest>Sign up</button>
                 <span class="auth-user" data-auth-user hidden></span>
                 <button class="btn btn-primary btn-sm" style="flex:1" data-logout hidden>Log out</button>
-            </div>
+            </div>-->
         </div>
     </header>
 
@@ -2103,13 +2124,16 @@
     <!-- ============ FOOTER ============ -->
     <footer class="site">
         <div class="container">
+            <div class="footer-image">
+                <img src="../src/ft.png" alt="RaniCab service coverage">
+            </div>
             <div class="footer-grid">
                 <div>
                     <div class="footer-logo">
                         <span class="mark"><img src="../src/logo.png" alt=""></span>
                         Rani<span class="go">Cab</span>
                     </div>
-                    <img src="../src/ft.png" alt="RaniCab service coverage" class="footer-image">
+
                     <p class="footer-desc">Reliable, upfront-priced cab booking across Tamil Nadu — oneway trips, hourly
                         rentals and airport transfers.</p>
                     <div class="social-row">

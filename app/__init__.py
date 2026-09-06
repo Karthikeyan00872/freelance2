@@ -73,8 +73,7 @@ def create_app():
     
     @app.get("/src/<path:filename>")
     def frontend_asset(filename):
-        frontend_src = os.path.join(PROJECT_DIR, "src")
-        print(f"Serving asset: {filename} from {frontend_src}")
+        frontend_src = os.path.join(PROJECT_DIR, "src")       
         if os.path.exists(os.path.join(frontend_src, filename)):
             return send_from_directory(frontend_src, filename)
         return send_from_directory(ASSETS_DIR, filename)
